@@ -1,25 +1,3 @@
-resource "aws_s3_bucket" "redirect" {
-  bucket = var.redirect_domain_name
-}
-
-resource "aws_s3_bucket_website_configuration" "redirect" {
-  bucket = aws_s3_bucket.redirect.id
-
-  redirect_all_requests_to {
-    host_name = var.domain_name
-    protocol  = "https"
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "redirect" {
-  bucket                  = aws_s3_bucket.redirect.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-
 # resource "aws_amplify_app" "website" {
 #   name                          = var.domain_name
 #   repository                    = var.repo
@@ -262,6 +240,44 @@ resource "aws_amplify_domain_association" "website" {
 
   sub_domain {
     branch_name = aws_amplify_branch.prod.branch_name
+    prefix      = "www"
+  }
+}
+
+resource "aws_amplify_app" "redirect_website" {
+  name     = var.redirect_domain_name
+  platform = "WEB"
+
+  custom_rule {
+    source = "<*>"
+    target = "https://${var.domain_name}/<*>"
+    status = "301"
+  }
+}
+
+resource "aws_acm_certificate" "redirect_website" {
+  domain_name               = var.redirect_domain_name
+  subject_alternative_names = ["*.${var.redirect_domain_name}"]
+  validation_method         = "DNS"
+}
+
+resource "aws_amplify_branch" "redirect_prod" {
+  app_id      = aws_amplify_app.redirect_website.id
+  branch_name = var.prod_branch
+  stage       = "PRODUCTION"
+}
+
+resource "aws_amplify_domain_association" "redirect_website" {
+  domain_name = var.redirect_domain_name
+  app_id      = aws_amplify_app.redirect_website.id
+
+  sub_domain {
+    branch_name = aws_amplify_branch.redirect_prod.branch_name
+    prefix      = ""
+  }
+
+  sub_domain {
+    branch_name = aws_amplify_branch.redirect_prod.branch_name
     prefix      = "www"
   }
 }
