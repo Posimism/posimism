@@ -91,7 +91,7 @@ resource "aws_amplify_branch" "prod" {
 }
 
 resource "aws_s3_bucket" "static_website" {
-  bucket = "${var.domain_name}-static-website"
+  bucket = "${var.domain_name}-static-site"
 }
 
 resource "aws_s3_bucket_public_access_block" "static_website" {

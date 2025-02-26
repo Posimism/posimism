@@ -18,24 +18,47 @@ export default {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-5px)" },
         },
+        customBounce: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-0.25em)" },
+        },
       },
       animation: {
         float: "float 6s ease-in-out infinite",
         "slow-float": "slowFloat 8s ease-in-out infinite",
+        "custom-bounce": "customBounce 1s ease-in-out infinite both",
+        "bounce-delay-0": "customBounce 1s ease-in-out infinite both",
+        "bounce-delay-150": "customBounce 1s ease-in-out infinite both 150ms",
+        "bounce-delay-300": "customBounce 1s ease-in-out infinite both 300ms",
       },
     },
   },
   plugins: [
-    plugin(({ addUtilities }) => {
-      const newUtilities = {
-        ".animation-delay-200": {
-          "animation-delay": "0.2s",
+    plugin(({ matchUtilities, theme }) => {
+      matchUtilities(
+        {
+          "animate-duration": (value) => ({
+            animationDuration: value,
+          }),
         },
-        ".animation-delay-400": {
-          "animation-delay": "0.4s",
+        { values: theme("transitionDuration") }
+      );
+      matchUtilities(
+        {
+          "animate-delay": (value) => ({
+            animationDelay: value,
+          }),
         },
-      };
-      addUtilities(newUtilities, ["responsive", "hover"]);
+        { values: theme("transitionDelay") }
+      );
+      matchUtilities(
+        {
+          "animate-ease": (value) => ({
+            animationTimingFunction: value,
+          }),
+        },
+        { values: theme("transitionTimingFunction") }
+      );
     }),
   ],
 } satisfies Config;
