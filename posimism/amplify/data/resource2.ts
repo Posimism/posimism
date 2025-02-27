@@ -5,7 +5,7 @@ const schema = a
     Chat: a
       .model({
         id: a.id().required(),
-        createdAt: a.timestamp(),
+        createdAt: a.datetime(),
         owner: a.string().required(),
         name: a.string(),
         members: a.hasMany("ChatMember", "chatID"),
@@ -46,7 +46,7 @@ const schema = a
         id: a.id().required(),
         chatID: a.id().required(),
         userID: a.id().required(),
-        createdAt: a.timestamp().required(),
+        createdAt: a.datetime(),
         updatedAt: a.timestamp(),
         chat: a.belongsTo("Chat", "chatID"),
         user: a.belongsTo("User", "userID"),
@@ -196,7 +196,9 @@ const schema = a
       .model({
         id: a.id().required(),
         owner: a.string().required(),
-        createdAt: a.timestamp().required(),
+        createdAt: a
+          .timestamp()
+          .authorization((allow) => [allow.owner().to(["read"])]),
         chatID: a.id().required(),
         chat: a.belongsTo("Chat", "chatID"),
         msg: a.string(),

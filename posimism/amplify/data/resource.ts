@@ -11,12 +11,12 @@ const schema = a
       .model({
         id: a.id().required(),
         createdAt: a
-          .timestamp()
+          .datetime()
           .authorization((allow) => [allow.owner().to(["read"])]),
         owner: a
           .string()
           .required()
-          .authorization((allow) => [allow.owner().to(["read"])]),
+          .authorization((allow) => [allow.owner().to(["create","read"])]),
         name: a.string(),
         messages: a.hasMany("AiChatMessage", "chatID"),
       })
@@ -28,7 +28,7 @@ const schema = a
     AiChatMessage: a
       .model({
         id: a.id().required(),
-        createdAt: a.timestamp().required(),
+        createdAt: a.datetime().required(),
         chatID: a.id().required(),
         chat: a.belongsTo("AIChat", "chatID"),
         owner: a.string().required(),

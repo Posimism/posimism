@@ -1,7 +1,9 @@
 "use client";
-/* eslint-disable @next/next/no-img-element */
 import { cn } from "@/utils/tailwind-utils";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useDataClient } from "./ConfigureAmplify";
+import { fetchUserAttributes } from "aws-amplify/auth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 type MessageStatus = "pending" | "sent" | "delivered" | "read";
 
@@ -11,9 +13,9 @@ export interface Message {
   owner: string;
   createdAt: string;
   msg: string;
+  status: MessageStatus;
   isAi?: boolean;
   streaming?: boolean;
-  status: MessageStatus;
   avatarUrl?: string;
   content?: React.ReactNode;
   parentID?: string;
@@ -35,36 +37,42 @@ const SystemMessage: React.FC<{ message: Message }> = ({ message }) => (
   </div>
 );
 
-const QuickActions: React.FC<{ 
-  message: Message, 
-  onReact: (messageId: string, reaction: string) => void 
+const QuickActions: React.FC<{
+  message: Message;
+  onReact: (messageId: string, reaction: string) => void;
 }> = ({ message, onReact }) => {
   const reactions = message.reactions || {};
-  
+
   return (
     <div className="absolute bottom-0 translate-y-1/2 left-1/2 -translate-x-1/2 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center space-x-2 bg-white p-1.5 rounded-full shadow-md z-10">
-      <button 
+      <button
         onClick={() => onReact(message.id, "👍")}
         className="hover:bg-gray-100 rounded-full p-1 transition-colors"
       >
         <span className="text-lg">👍</span>
-        {reactions["👍"] && <span className="text-xs ml-1">{reactions["👍"]}</span>}
+        {reactions["👍"] && (
+          <span className="text-xs ml-1">{reactions["👍"]}</span>
+        )}
       </button>
-      <button 
+      <button
         onClick={() => onReact(message.id, "👎")}
         className="hover:bg-gray-100 rounded-full p-1 transition-colors"
       >
         <span className="text-lg">👎</span>
-        {reactions["👎"] && <span className="text-xs ml-1">{reactions["👎"]}</span>}
+        {reactions["👎"] && (
+          <span className="text-xs ml-1">{reactions["👎"]}</span>
+        )}
       </button>
-      {message.quickActions?.map(action => (
-        <button 
+      {message.quickActions?.map((action) => (
+        <button
           key={action}
           onClick={() => onReact(message.id, action)}
           className="hover:bg-gray-100 rounded-full p-1 transition-colors"
         >
           <span className="text-lg">{action}</span>
-          {reactions[action] && <span className="text-xs ml-1">{reactions[action]}</span>}
+          {reactions[action] && (
+            <span className="text-xs ml-1">{reactions[action]}</span>
+          )}
         </button>
       ))}
     </div>
@@ -111,7 +119,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   return (
     <div
       className={cn(
-        "group/msg relative mb-2",  // Changed from mb-9 to mb-2
+        "group/msg relative mb-2", // Changed from mb-9 to mb-2
         outgoing && "flex justify-end"
       )}
     >
@@ -234,141 +242,239 @@ const InputBar: React.FC<{
   );
 };
 
-const defaultMessages: Message[] = [
-  {
-    id: "1",
-    msg: "Welcome to the chat!",
-    status: "read",
-    createdAt: "10:00 AM",
-    isSystemMessage: true,
-    chatID: "1",
-    owner: "1",
-  },
-  {
-    id: "2",
-    msg: "Hello, how are you?",
-    status: "read",
-    createdAt: "10:01 AM",
-    avatarUrl: "https://i.pravatar.cc/300",
-    quickActions: ["👍", "❤️", "😂"],
-    chatID: "1",
-    owner: "1",
-    reactions: { "👍": 1 },
-  },
-  {
-    id: "3",
-    msg: "I am doing well, thanks!",
-    isAi: true,
-    status: "delivered",
-    createdAt: "10:02 AM",
-    avatarUrl: "https://i.pravatar.cc/300?img=2",
-    parentID: "Hello, how are you?",
-    chatID: "1",
-    owner: "1",
-    reactions: { "❤️": 2 },
-  },
-  {
-    id: "4",
-    msg: "Check out this cool image.",
-    status: "pending",
-    createdAt: "10:03 AM",
-    content: (
-      <img
-        src="https://www.imore.com/sites/imore.com/files/field/image/2014/11/imessage_iphone_6_star_emoji_hero_0.jpg"
-        alt="sample"
-        className="mt-2 rounded"
-      />
-    ),
-    quickActions: ["👍", "❤️"],
-    chatID: "1",
-    owner: "1",
-  },
-  {
-    id: "∆DKdk",
-    msg: "Hello, how am I? Superduperswellalicious. beans and fritters and cheese and missin mom",
-    status: "read",
-    isAi: true,
-    createdAt: "10:01 AM",
-    avatarUrl: "https://i.pravatar.cc/300",
-    quickActions: ["👍", "❤️", "😂"],
-    chatID: "1",
-    streaming: true,
-    owner: "1",
-  },
-  {
-    id: "5",
-    msg: "Another standalonalony message",
-    status: "read",
-    createdAt: "10:04 AM",
-    avatarUrl: "https://i.pravatar.cc/300",
-    chatID: "1",
-    owner: "1",
-  },
-];
-
 const ChatWindow: React.FC<{
   messages?: Message[];
   onSendMessage: (message: string) => void;
   onReact: (messageId: string, reaction: string) => void;
-}> = ({ messages = defaultMessages, onSendMessage, onReact }) => {
+  isLoading: boolean;
+}> = ({ messages = [], onSendMessage, onReact, isLoading }) => {
   return (
     <div className="flex flex-col">
       <div className="flex flex-col space-y-2 mb-2 overflow-y-auto max-h-[400px] p-2">
-        {messages.map((msg) => (
-          <ChatMessage key={msg.id} message={msg} onReact={onReact} />
-        ))}
+        {isLoading ? (
+          <div className="flex justify-center my-4">
+            <div className="animate-pulse text-gray-500">
+              Loading messages...
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="text-center text-gray-500 my-8">
+            No messages yet. Start a conversation!
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <ChatMessage key={msg.id} message={msg} onReact={onReact} />
+          ))
+        )}
       </div>
       <InputBar onSendMessage={onSendMessage} />
     </div>
   );
 };
 
-const Chat: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>(defaultMessages);
+const Chat: React.FC<{ chatId?: string }> = ({ chatId }) => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const dataClient = useDataClient();
+  const queryClient = useQueryClient();
 
-  const handleSendMessage = (text: string) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      msg: text,
-      status: "pending",
-      createdAt: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      chatID: "1",
-      owner: "1",
-      reactions: {},
+  // Get or create chat
+  const { data: currentChatId, isLoading: isLoadingChat } = useQuery({
+    queryKey: ["current-chat", chatId],
+    queryFn: async () => {
+      if (chatId) return chatId;
+      if (!dataClient) return null;
+
+      try {
+        const { sub: owner } = await fetchUserAttributes();
+        if (!owner) {
+          throw new Error("Error fetching user attributes");
+        }
+
+        // First try to get existing chats
+        const existingChats =
+          await dataClient.models.AIChat.listAIChatByOwnerAndCreatedAt(
+            { owner },
+            { sortDirection: "DESC", limit: 1, authMode: "userPool" }
+          );
+
+        // If user has existing chats, use the most recent one
+        if (existingChats.data && existingChats.data.length > 0) {
+          return existingChats.data[0].id;
+        }
+
+        // Only create a new chat if no existing chats were found
+        const response = await dataClient.models.AIChat.create(
+          { owner, name: "New Chat" },
+          { authMode: "userPool" }
+        );
+
+        if (!response.data?.id) {
+          throw new Error("Error creating chat: No ID returned");
+        }
+        return response.data.id;
+      } catch (error) {
+        console.error("Error getting or creating chat:", error);
+        throw error;
+      }
+    },
+    enabled: !!dataClient,
+    staleTime: Infinity, // Chat ID shouldn't change during the session
+  });
+
+  // Subscribe to messages when we have a chat ID
+  useEffect(() => {
+    if (!dataClient || !currentChatId) return;
+
+    setIsLoading(true);
+
+    const subscription = dataClient.models.AiChatMessage.observeQuery({
+      filter: { chatID: { eq: currentChatId } },
+      authMode: "userPool",
+    }).subscribe({
+      next: ({ items, isSynced }) => {
+        const formattedMessages = items
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+          .map(
+            (msg) =>
+              ({
+                id: msg.id,
+                chatID: msg.chatID,
+                owner: msg.owner || "unknown",
+                createdAt: msg.createdAt
+                  ? new Date(msg.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "",
+                msg: msg.msg || "",
+                isAi: Boolean(msg.isAi),
+                streaming: Boolean(msg.streaming),
+                status: "read" as MessageStatus,
+                reactions: {},
+              } as Message)
+          );
+
+        setMessages(formattedMessages);
+        if (isSynced) {
+          setIsLoading(false);
+        }
+
+        // Update the query cache with the latest messages
+        queryClient.setQueryData(
+          ["chat-messages", currentChatId],
+          formattedMessages
+        );
+      },
+      error: (error) => console.error("Subscription error:", error),
+    });
+
+    return () => {
+      subscription.unsubscribe();
     };
+  }, [dataClient, currentChatId, queryClient]);
 
-    setMessages([...messages, newMessage]);
+  // Mutation for sending messages
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ chatId, text }: { chatId: string; text: string }) => {
+      if (!dataClient) {
+        throw new Error("Data client not initialized");
+      }
+      return await dataClient.mutations.createMessage(
+        {
+          chatID: chatId,
+          msg: text,
+        },
+        {
+          authMode: "userPool",
+        }
+      );
+    },
+    onMutate: async ({ chatId, text }) => {
+      // Optimistic update
+      const tempId = `temp-${Date.now()}`;
+      const newMessage: Message = {
+        id: tempId,
+        msg: text,
+        status: "pending",
+        createdAt: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        chatID: chatId,
+        owner: "me", // Will be replaced with actual user ID
+        reactions: {},
+      };
 
-    // Simulate message status changing to "delivered" after a small delay
-    setTimeout(() => {
+      setMessages((prev) => [...prev, newMessage]);
+      return { tempId };
+    },
+    onError: (error, variables, context) => {
+      console.error("Error sending message:", error);
+      // Mark the message as failed
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === newMessage.id ? { ...msg, status: "delivered" } : msg
+          msg.id === context?.tempId
+            ? {
+                ...msg,
+                status: "pending",
+                msg: msg.msg + " (Failed to send)",
+              }
+            : msg
         )
       );
-    }, 1000);
-  };
+    },
+  });
 
-  const handleReact = (messageId: string, reaction: string) => {
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id === messageId) {
-          const currentReactions = msg.reactions || {};
-          return {
-            ...msg,
-            reactions: {
-              ...currentReactions,
-              [reaction]: (currentReactions[reaction] || 0) + 1,
-            },
-          };
-        }
-        return msg;
-      })
-    );
-  };
+  // Mutation for reactions
+  const reactToMessageMutation = useMutation({
+    mutationFn: async ({
+      messageId,
+      reaction,
+    }: {
+      messageId: string;
+      reaction: string;
+    }) => {
+      // TODO: Implement backend API call when available
+      return { messageId, reaction };
+    },
+    onMutate: ({ messageId, reaction }) => {
+      // Optimistic update for reactions
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === messageId) {
+            const currentReactions = msg.reactions || {};
+            return {
+              ...msg,
+              reactions: {
+                ...currentReactions,
+                [reaction]: (currentReactions[reaction] || 0) + 1,
+              },
+            };
+          }
+          return msg;
+        })
+      );
+    },
+  });
+
+  const handleSendMessage = useCallback(
+    (text: string) => {
+      if (!currentChatId) return;
+      sendMessageMutation.mutate({ chatId: currentChatId, text });
+    },
+    [currentChatId, sendMessageMutation]
+  );
+
+  const handleReact = useCallback(
+    (messageId: string, reaction: string) => {
+      reactToMessageMutation.mutate({ messageId, reaction });
+    },
+    [reactToMessageMutation]
+  );
+
+  // Determine overall loading state
+  const isLoadingState = isLoadingChat || isLoading;
 
   return (
     <div className="w-full max-w-md mx-auto bg-gray-100 p-4 rounded-lg shadow-lg">
@@ -376,6 +482,7 @@ const Chat: React.FC = () => {
         messages={messages}
         onSendMessage={handleSendMessage}
         onReact={handleReact}
+        isLoading={isLoadingState}
       />
     </div>
   );

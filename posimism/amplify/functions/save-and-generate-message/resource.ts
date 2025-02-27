@@ -1,5 +1,6 @@
 import { defineFunction } from "@aws-amplify/backend";
 
 export const saveAndGenerateMessage = defineFunction({
-  entry: "handler.ts",
+  timeoutSeconds: 180,
+  environment: {},
 });

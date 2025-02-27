@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import ConfigureAmplifyClientSide from "@/components/ConfigureAmplify";
+import QueryClientProviderProvider from "@/components/QueryClientProviderProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,15 +33,18 @@ export default function RootLayout({
           padding: 0,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            minHeight: "100vh",
-          }}
-        >
-          {children}
-        </div>
+        <QueryClientProviderProvider>
+          <ConfigureAmplifyClientSide />
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              minHeight: "100vh",
+            }}
+          >
+            {children}
+          </div>
+        </QueryClientProviderProvider>
       </body>
     </html>
   );

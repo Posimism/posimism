@@ -1,5 +1,5 @@
+// app/aichat/layout.tsx
 import type { Metadata } from "next";
-// import ConfigureAmplifyClientSide from "../../components/ConfigureAmplify";
 import { Fragment } from "react";
 
 export const metadata: Metadata = {
@@ -14,7 +14,6 @@ export default function RootLayout({
 }>) {
   return (
     <Fragment>
-      {/* <ConfigureAmplifyClientSide /> */}
       {children}
     </Fragment>
   );
