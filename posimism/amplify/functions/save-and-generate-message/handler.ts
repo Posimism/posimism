@@ -89,12 +89,19 @@ export const handler: Schema["createMessage"]["functionHandler"] = async (
       ],
       stream: true,
     });
+
+    let chunkCount = 0;
+    let sentChunks = 0;
+    const start  = Date.now();
+    const maxWpms = 300 / 6000 ;
     for await (const chunk of aiMsgStream) {
       const content = chunk.choices[0]?.delta?.content || "";
       aiResponse += content;
+      ++chunkCount;
 
-      // Only update if we have new content to reduce database operations
-      if (content) {
+      // Only update if we have new content, are printing the first 10 words (chunks), or sending at less than 300 wpm
+      if (content && (sentChunks < 10 || sentChunks / ((Date.now() - start)) <= maxWpms)) {
+        sentChunks = chunkCount;
         await client.models.AiChatMessage.update({
           id: initialAiMsg.data.id,
           chatID,
@@ -104,7 +111,7 @@ export const handler: Schema["createMessage"]["functionHandler"] = async (
       }
     }
 
-    // Mark as complete once done
+    // Mark as complete once done and send final message
     await client.models.AiChatMessage.update({
       id: initialAiMsg.data.id,
       chatID,
