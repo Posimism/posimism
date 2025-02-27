@@ -2,5 +2,8 @@
   "type": "module",
   "devDependencies": {
     "@aws-amplify/backend": "^1.14.1"
+  },
+  "dependencies": {
+    "@aws-appsync/utils": "^1.12.0"
   }
 }

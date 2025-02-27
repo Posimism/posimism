@@ -159,7 +159,6 @@ const schema = a
           entry: "./get-user-chat-auth",
         }),
         a.handler.custom({
-          dataSource: a.ref("NONE"),
           entry: "./set-is-typing",
         }),
       ])
@@ -176,7 +175,6 @@ const schema = a
           entry: "./get-user-chat-auth",
         }),
         a.handler.custom({
-          dataSource: a.ref("NONE"),
           entry: "./is-typing-filter",
         }),
       ]),
@@ -307,7 +305,6 @@ const schema = a
           entry: "./get-user-chat-auth",
         }),
         a.handler.custom({
-          dataSource: a.ref("NONE"),
           entry: "./chat-messages-filter",
         }),
       ]),
@@ -367,7 +364,6 @@ const schema = a
           entry: "./get-user-chat-auth",
         }),
         a.handler.custom({
-          dataSource: a.ref("NONE"),
           entry: "./quick-replies-filter",
         }),
       ]),
@@ -419,7 +415,6 @@ const schema = a
           entry: "./get-user-chat-auth",
         }),
         a.handler.custom({
-          dataSource: a.ref("NONE"),
           entry: "./message-status-filter",
         }),
       ]),
