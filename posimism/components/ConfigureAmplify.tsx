@@ -4,7 +4,6 @@ import { Amplify } from "aws-amplify";
 // import { fetchAuthSession } from 'aws-amplify/auth';
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "@/amplify/data/resource";
-import { useEffect, useState } from "react";
 
 // Amplify.configure(outputs, { ssr: true });
 Amplify.configure(outputs);
@@ -13,18 +12,19 @@ export default function ConfigureAmplifyClientSide() {
   return null;
 }
 
-// components/ConfigureAmplify.tsx
+export const dataClient = generateClient<Schema>();
 
-// Helper to get the data client
-export function useDataClient() {
-  const [client, setClient] = useState<ReturnType<
-    typeof generateClient<Schema>
-  > | null>(null);
+// import { useEffect, useState } from "react";
+// // Helper to get the data client
+// export function useDataClient() {
+//   const [client, setClient] = useState<ReturnType<
+//     typeof generateClient<Schema>
+//   > | null>(null);
 
-  useEffect(() => {
-    const client = generateClient<Schema>();
-    setClient(client);
-  }, []);
+//   useEffect(() => {
+//     const client = generateClient<Schema>();
+//     setClient(client);
+//   }, []);
 
-  return client;
-}
+//   return client;
+// }

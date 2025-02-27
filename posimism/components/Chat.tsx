@@ -1,44 +1,29 @@
 "use client";
 import { cn } from "@/utils/tailwind-utils";
-import { useState, useEffect, useCallback } from "react";
-import { useDataClient } from "./ConfigureAmplify";
-import { fetchUserAttributes } from "aws-amplify/auth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
-type MessageStatus = "pending" | "sent" | "delivered" | "read";
-
-export interface Message {
-  id: string;
-  chatID: string;
-  owner: string;
-  createdAt: string;
-  msg: string;
-  status: MessageStatus;
-  isAi?: boolean;
-  streaming?: boolean;
-  avatarUrl?: string;
-  content?: React.ReactNode;
-  parentID?: string;
-  quickActions?: string[];
-  isSystemMessage?: boolean;
-  reactions?: Record<string, number>;
-}
+import { Fragment, useEffect, useRef, useState } from "react";
+import { useUserID } from "@/utils/amplify-utils-client";
+import {
+  FrontEndMessage,
+  GetOrCreateAIChat,
+  SendAIChatMessage,
+} from "@/utils/api";
+import { SubscribeToAIChatMessages } from "../utils/api";
 
 type ChatMessageProps = {
-  message: Message;
+  message: FrontEndMessage;
   onReact?: (messageId: string, reaction: string) => void;
 } & React.HTMLAttributes<HTMLDivElement>;
 
-const SystemMessage: React.FC<{ message: Message }> = ({ message }) => (
+const SystemMessage: React.FC<{ text: string }> = ({ text }) => (
   <div className="flex items-center my-4">
     <div className="flex-grow border-t border-gray-400"></div>
-    <span className="px-2 text-gray-600 text-sm">{message.msg}</span>
+    <span className="px-2 text-gray-600 text-sm">{text}</span>
     <div className="flex-grow border-t border-gray-400"></div>
   </div>
 );
 
-const QuickActions: React.FC<{
-  message: Message;
+/* const QuickActions: React.FC<{
+  message: FrontEndMessage;
   onReact: (messageId: string, reaction: string) => void;
 }> = ({ message, onReact }) => {
   const reactions = message.reactions || {};
@@ -77,27 +62,19 @@ const QuickActions: React.FC<{
       ))}
     </div>
   );
-};
+}; */
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
   message,
   className,
-  onReact = () => {},
   ...props
 }) => {
-  const {
-    status,
-    createdAt,
-    msg,
-    isAi,
-    isSystemMessage,
-    streaming,
-    reactions,
-  } = message;
-  if (isSystemMessage) {
-    return <SystemMessage message={message} />;
-  }
+  const { createdAt, msg, isAi, streaming } = message;
+  // if (isSystemMessage) {
+  //   return <SystemMessage message={message} />;
+  // }
   const outgoing = !isAi;
+  const reactions = {} as { [emoji: string]: number }; // temporary
 
   // Display reactions if any exist
   const displayedReactions =
@@ -164,7 +141,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             outgoing ? "text-blue-50/90" : "text-indigo-900/70"
           )}
         >
-          <span>{createdAt}</span>
+          <span>
+            {new Date(createdAt).toLocaleTimeString(undefined, {
+              hour: "numeric",
+              minute: "numeric",
+            })}
+          </span>
           {outgoing && (
             <div className="hidden group-last/msg:inline">
               {status === "pending" ? (
@@ -188,42 +170,83 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
         </div>
         {displayedReactions}
       </div>
-      <QuickActions message={message} onReact={onReact} />
+      {/* <QuickActions message={message} onReact={onReact} /> */}
     </div>
   );
 };
 
 // Input bar component with send button
 const InputBar: React.FC<{
-  onSendMessage: (message: string) => void;
-}> = ({ onSendMessage }) => {
+  chatID: string;
+}> = ({ chatID }) => {
   const [inputValue, setInputValue] = useState("");
+  const auth = useUserID();
+  const { mutate: sendMessage, isPending } = SendAIChatMessage(auth);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim()) {
-      onSendMessage(inputValue);
+      sendMessage(
+        { chatID, text: inputValue },
+        {
+          onError: () =>
+            setInputValue((curr) => {
+              if (inputValue != curr) {
+                return inputValue + curr;
+              }
+              return curr;
+            }),
+        }
+      );
       setInputValue("");
+    }
+  };
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResizeTextarea = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = "auto";
+      // Set the height to match content
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  };
+
+  // Adjust textarea height when input value changes
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [inputValue]);
+
+  // Handle Enter key press
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      handleSubmit(e);
     }
   };
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-center bg-white rounded-full px-4 py-1.5 mt-2 shadow-md"
+      className="flex items-stretch bg-white rounded-3xl px-4 py-1.5 mt-2 shadow-md"
     >
-      <input
-        type="text"
+      <textarea
+        ref={textareaRef}
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder="Type a message..."
-        className="flex-1 outline-none text-gray-700 min-w-0"
+        className="w-full outline-none text-gray-700 resize-none min-h-[24px] max-h-[150px] py-1.5 overflow-y-auto"
+        rows={1}
+        onInput={autoResizeTextarea}
       />
       <button
         type="submit"
-        disabled={!inputValue.trim()}
+        disabled={!inputValue.trim() || isPending}
         className={cn(
-          "ml-2 p-2 rounded-full flex items-center justify-center transition-colors",
+          "ml-2 p-2 rounded-full flex items-center justify-center transition-colors aspect-square self-end",
           inputValue.trim()
             ? "bg-gradient-to-r from-blue-400 to-cyan-400 text-white"
             : "bg-gray-200 text-gray-400"
@@ -233,7 +256,7 @@ const InputBar: React.FC<{
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
           fill="currentColor"
-          className="w-5 h-5 rotate-45"
+          className="w-5 h-5 -rotate-45"
         >
           <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
         </svg>
@@ -242,250 +265,85 @@ const InputBar: React.FC<{
   );
 };
 
-const ChatWindow: React.FC<{
-  messages?: Message[];
-  onSendMessage: (message: string) => void;
-  onReact: (messageId: string, reaction: string) => void;
-  isLoading: boolean;
-}> = ({ messages = [], onSendMessage, onReact, isLoading }) => {
+const MessageFeed: React.FC<{ chatID: string }> = ({ chatID }) => {
+  const auth = useUserID();
+  const { data: messages, isLoading } = SubscribeToAIChatMessages({
+    chatID,
+    auth,
+  });
+
+  // Add ref for the container div
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+  };
+
+  // Scroll to bottom when messages change or load
+  useEffect(() => {
+    if (!isLoading && messages) {
+      scrollToBottom();
+    }
+  }, [messages, isLoading]);
+
+  return isLoading ? (
+    <div className="flex justify-center my-4">
+      <div className="animate-pulse text-gray-500">Loading messages...</div>
+    </div>
+  ) : !messages ? (
+    <div>No mess</div>
+  ) : messages.length === 0 ? (
+    <div className="text-center text-gray-500 my-8">
+      No messages yet. Start a conversation!
+    </div>
+  ) : (
+    <>
+      {messages.map((msg, i) => {
+        const thisDate = new Date(msg.createdAt);
+        if (
+          i == 0 ||
+          new Date(messages[i - 1].createdAt).getTime() - thisDate.getTime() >
+            1000 * 60 * 15
+        ) {
+          return (
+            <Fragment key={msg.id}>
+              <SystemMessage
+                key={msg.id}
+                text={thisDate.toLocaleTimeString(undefined, {
+                  hour: "numeric",
+                  minute: "numeric",
+                })}
+              />
+              <ChatMessage message={msg} />
+            </Fragment>
+          );
+        }
+        return (
+          <Fragment key={msg.id}>
+            <ChatMessage message={msg} />
+          </Fragment>
+        );
+      })}
+      {/* Add an empty div at the end to scroll to */}
+      <div ref={messagesEndRef} />
+    </>
+  );
+};
+
+const ChatWindow = () => {
+  const userIDState = useUserID();
+  const { data: chats } = GetOrCreateAIChat(userIDState || null);
+  const { id: currentChatID } = (chats && chats[0]) || {};
+
   return (
     <div className="flex flex-col">
       <div className="flex flex-col space-y-2 mb-2 overflow-y-auto max-h-[400px] p-2">
-        {isLoading ? (
-          <div className="flex justify-center my-4">
-            <div className="animate-pulse text-gray-500">
-              Loading messages...
-            </div>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="text-center text-gray-500 my-8">
-            No messages yet. Start a conversation!
-          </div>
-        ) : (
-          messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} onReact={onReact} />
-          ))
-        )}
+        {currentChatID && <MessageFeed chatID={currentChatID} />}
       </div>
-      <InputBar onSendMessage={onSendMessage} />
+      {currentChatID && <InputBar chatID={currentChatID} />}
     </div>
   );
 };
 
-const Chat: React.FC<{ chatId?: string }> = ({ chatId }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const dataClient = useDataClient();
-  const queryClient = useQueryClient();
-
-  // Get or create chat
-  const { data: currentChatId, isLoading: isLoadingChat } = useQuery({
-    queryKey: ["current-chat", chatId],
-    queryFn: async () => {
-      if (chatId) return chatId;
-      if (!dataClient) return null;
-
-      try {
-        const { sub: owner } = await fetchUserAttributes();
-        if (!owner) {
-          throw new Error("Error fetching user attributes");
-        }
-
-        // First try to get existing chats
-        const existingChats =
-          await dataClient.models.AIChat.listAIChatByOwnerAndCreatedAt(
-            { owner },
-            { sortDirection: "DESC", limit: 1, authMode: "userPool" }
-          );
-
-        // If user has existing chats, use the most recent one
-        if (existingChats.data && existingChats.data.length > 0) {
-          return existingChats.data[0].id;
-        }
-
-        // Only create a new chat if no existing chats were found
-        const response = await dataClient.models.AIChat.create(
-          { owner, name: "New Chat" },
-          { authMode: "userPool" }
-        );
-
-        if (!response.data?.id) {
-          throw new Error("Error creating chat: No ID returned");
-        }
-        return response.data.id;
-      } catch (error) {
-        console.error("Error getting or creating chat:", error);
-        throw error;
-      }
-    },
-    enabled: !!dataClient,
-    staleTime: Infinity, // Chat ID shouldn't change during the session
-  });
-
-  // Subscribe to messages when we have a chat ID
-  useEffect(() => {
-    if (!dataClient || !currentChatId) return;
-
-    setIsLoading(true);
-
-    const subscription = dataClient.models.AiChatMessage.observeQuery({
-      filter: { chatID: { eq: currentChatId } },
-      authMode: "userPool",
-    }).subscribe({
-      next: ({ items, isSynced }) => {
-        const formattedMessages = items
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-          .map(
-            (msg) =>
-              ({
-                id: msg.id,
-                chatID: msg.chatID,
-                owner: msg.owner || "unknown",
-                createdAt: msg.createdAt
-                  ? new Date(msg.createdAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "",
-                msg: msg.msg || "",
-                isAi: Boolean(msg.isAi),
-                streaming: Boolean(msg.streaming),
-                status: "read" as MessageStatus,
-                reactions: {},
-              } as Message)
-          );
-
-        setMessages(formattedMessages);
-        if (isSynced) {
-          setIsLoading(false);
-        }
-
-        // Update the query cache with the latest messages
-        queryClient.setQueryData(
-          ["chat-messages", currentChatId],
-          formattedMessages
-        );
-      },
-      error: (error) => console.error("Subscription error:", error),
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [dataClient, currentChatId, queryClient]);
-
-  // Mutation for sending messages
-  const sendMessageMutation = useMutation({
-    mutationFn: async ({ chatId, text }: { chatId: string; text: string }) => {
-      if (!dataClient) {
-        throw new Error("Data client not initialized");
-      }
-      return await dataClient.mutations.createMessage(
-        {
-          chatID: chatId,
-          msg: text,
-        },
-        {
-          authMode: "userPool",
-        }
-      );
-    },
-    onMutate: async ({ chatId, text }) => {
-      // Optimistic update
-      const tempId = `temp-${Date.now()}`;
-      const newMessage: Message = {
-        id: tempId,
-        msg: text,
-        status: "pending",
-        createdAt: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        chatID: chatId,
-        owner: "me", // Will be replaced with actual user ID
-        reactions: {},
-      };
-
-      setMessages((prev) => [...prev, newMessage]);
-      return { tempId };
-    },
-    onError: (error, variables, context) => {
-      console.error("Error sending message:", error);
-      // Mark the message as failed
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === context?.tempId
-            ? {
-                ...msg,
-                status: "pending",
-                msg: msg.msg + " (Failed to send)",
-              }
-            : msg
-        )
-      );
-    },
-  });
-
-  // Mutation for reactions
-  const reactToMessageMutation = useMutation({
-    mutationFn: async ({
-      messageId,
-      reaction,
-    }: {
-      messageId: string;
-      reaction: string;
-    }) => {
-      // TODO: Implement backend API call when available
-      return { messageId, reaction };
-    },
-    onMutate: ({ messageId, reaction }) => {
-      // Optimistic update for reactions
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id === messageId) {
-            const currentReactions = msg.reactions || {};
-            return {
-              ...msg,
-              reactions: {
-                ...currentReactions,
-                [reaction]: (currentReactions[reaction] || 0) + 1,
-              },
-            };
-          }
-          return msg;
-        })
-      );
-    },
-  });
-
-  const handleSendMessage = useCallback(
-    (text: string) => {
-      if (!currentChatId) return;
-      sendMessageMutation.mutate({ chatId: currentChatId, text });
-    },
-    [currentChatId, sendMessageMutation]
-  );
-
-  const handleReact = useCallback(
-    (messageId: string, reaction: string) => {
-      reactToMessageMutation.mutate({ messageId, reaction });
-    },
-    [reactToMessageMutation]
-  );
-
-  // Determine overall loading state
-  const isLoadingState = isLoadingChat || isLoading;
-
-  return (
-    <div className="w-full max-w-md mx-auto bg-gray-100 p-4 rounded-lg shadow-lg">
-      <ChatWindow
-        messages={messages}
-        onSendMessage={handleSendMessage}
-        onReact={handleReact}
-        isLoading={isLoadingState}
-      />
-    </div>
-  );
-};
-
-export default Chat;
+export default ChatWindow;
