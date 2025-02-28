@@ -12,16 +12,17 @@ const schema = a
         id: a.id().required(),
         createdAt: a
           .datetime()
-          .authorization((allow) => [allow.owner().to(["read"])]),
+          .authorization((allow) => [allow.owner().to(["read"]), allow.guest().to(["read"])]),
         owner: a
           .string()
           .required()
-          .authorization((allow) => [allow.owner().to(["create","read"])]),
+          .authorization((allow) => [allow.owner().to(["create","read"]), allow.guest().to(["create","read"])]),
         name: a.string(),
         messages: a.hasMany("AiChatMessage", "chatID"),
       })
       .authorization((allow) => [
         allow.owner().to(["create", "read", "update"]),
+        allow.guest().to(["create", "read", "update"]),
       ])
       .secondaryIndexes((index) => [index("owner").sortKeys(["createdAt"])])
       .identifier(["id"]),
@@ -39,7 +40,7 @@ const schema = a
       })
       .identifier(["id"])
       .secondaryIndexes((index) => [index("chatID").sortKeys(["createdAt"])])
-      .authorization((allow) => [allow.owner().to(["read"])]),
+      .authorization((allow) => [allow.owner().to(["read"]), allow.guest().to(["read"])]),
     createMessage: a
       .mutation()
       .arguments({
@@ -58,7 +59,7 @@ const schema = a
       })
       .identifier(["msgId"])
       .secondaryIndexes((index) => [index("value").sortKeys(["owner"])])
-      .authorization((allow) => [allow.owner()]),
+      .authorization((allow) => [allow.owner(), allow.guest()]),
   })
   .authorization((access) => [access.resource(saveAndGenerateMessage)]);
 
