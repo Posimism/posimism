@@ -1,7 +1,12 @@
 import { dataClient } from "@/components/ConfigureAmplify";
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { UserIDResult, UserIDState } from "./amplify-utils-client";
-import { useEffect, useMemo, } from "react";
+import { useEffect, useMemo } from "react";
 import type { Schema } from "@/amplify/data/resource";
 
 export type ApiUserAuthentication = UserIDResult | UserIDState | null;
@@ -11,7 +16,7 @@ export type ApiUserAuthWithChatID = { auth: ApiUserAuthentication } & {
 // Get or create AIChat
 export const GetOrCreateAIChat = (auth: ApiUserAuthentication) => {
   const { id: owner, authMode } = auth || {};
-  const opts = {
+  const opts = queryOptions({
     queryKey: [owner, "AIChats"],
     queryFn: async () => {
       if (!dataClient || !owner || !authMode) return null;
@@ -43,8 +48,30 @@ export const GetOrCreateAIChat = (auth: ApiUserAuthentication) => {
     },
     enabled: Boolean(dataClient && owner),
     staleTime: Infinity, // Chat ID shouldn't change during the session
-  };
+  });
   return useQuery(opts);
+};
+export const CreateChat = (auth: ApiUserAuthentication) => {
+  const { id: owner, authMode } = auth || {};
+  const queryClient = useQueryClient();
+
+  return useMutation<Schema["AIChat"]["type"] | null>({
+    mutationFn: async () => {
+      if (!dataClient || !owner || !authMode)
+        throw new Error("Not authenticated");
+      const response = await dataClient.models.AIChat.create(
+        { owner, name: "New Chat" },
+        { authMode }
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData([owner, "AIChats"], (prev: unknown) => [
+        data,
+        ...(Array.isArray(prev) ? prev : []),
+      ]);
+    },
+  });
 };
 
 export type MessageStatus =

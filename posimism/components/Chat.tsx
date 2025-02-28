@@ -1,13 +1,17 @@
 "use client";
 import { cn } from "@/utils/tailwind-utils";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useUserID } from "@/utils/amplify-utils-client";
 import {
+  CreateChat,
   FrontEndMessage,
   GetOrCreateAIChat,
   SendAIChatMessage,
 } from "@/utils/api";
 import { SubscribeToAIChatMessages } from "../utils/api";
+import { PiNotePencilLight } from "react-icons/pi";
+import { Button } from "./ui/button_shad_default";
+import { debounce } from "lodash";
 
 type ChatMessageProps = {
   message: FrontEndMessage;
@@ -278,6 +282,12 @@ const MessageFeed: React.FC<{ chatID: string }> = ({ chatID }) => {
     chatID,
     auth,
   });
+  const { mutate: createNewChat, isPending: isCreatingChat } = CreateChat(auth);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleCreateNewChat = useCallback(
+    debounce(() => createNewChat(), 2000, { leading: true }),
+    [createNewChat]
+  );
 
   // Add ref for the container div
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -304,6 +314,14 @@ const MessageFeed: React.FC<{ chatID: string }> = ({ chatID }) => {
     </div>
   ) : (
     <>
+      <Button
+        variant="outline"
+        className="absolute self-end px-1! z-10"
+        onClick={handleCreateNewChat}
+        disabled={isCreatingChat}
+      >
+        <PiNotePencilLight className="size-8" />
+      </Button>
       {messages.map((msg, i) => {
         const thisDate = new Date(msg.createdAt);
         if (
