@@ -69,7 +69,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   className,
   ...props
 }) => {
-  const { createdAt, msg, isAi, streaming } = message;
+  const { createdAt, status, msg, isAi, streaming } = message;
   // if (isSystemMessage) {
   //   return <SystemMessage message={message} />;
   // }
@@ -151,6 +151,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             <div className="hidden group-last/msg:inline">
               {status === "pending" ? (
                 <span className="animate-pulse">• Sending...</span>
+              ) : status === "failed" ? (
+                <span className="text-red-500">• Failed</span>
               ) : (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
