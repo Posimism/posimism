@@ -1,7 +1,7 @@
 {
   "name": "save-and-generate-message",
   "version": "1.0.0",
-  "main": "handler.js",
+  "main": "resource.js",
   "scripts": {
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
