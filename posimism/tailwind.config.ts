@@ -48,6 +48,9 @@ export default {
         "bounce-delay-150": "customBounce 1s ease-in-out infinite both 150ms",
         "bounce-delay-300": "customBounce 1s ease-in-out infinite both 300ms",
       },
+      fontFamily: {
+        pacifico: ["var(--font-pacifico)", "cursive"],
+      },
     },
   },
   plugins: [
