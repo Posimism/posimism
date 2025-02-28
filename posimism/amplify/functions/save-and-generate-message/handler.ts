@@ -5,6 +5,7 @@ import { OpenAI } from "openai";
 import { Amplify } from "aws-amplify";
 import { getAmplifyDataClientConfig } from "@aws-amplify/backend/function/runtime";
 import { env } from "$amplify/env/save-and-generate-message";
+import { system_prompt } from "./prompts";
 
 // Get configuration and set up clients
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(
@@ -85,7 +86,7 @@ export const handler: Schema["createMessage"]["functionHandler"] = async (
       model: "gpt-4o-mini",
       messages: [
         // Add system prompt if needed
-        // { role: "system", content: "Your system instructions here" },
+        { role: "system", content: system_prompt },
         ...formattedMessages,
         { role: "user", content: msg },
       ],
