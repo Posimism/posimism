@@ -4,12 +4,10 @@ import { Suspense } from "react";
 
 export default function Home() {
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen px-4 bg-gradient-to-tr from-purple-300 via-blue-200 to-green-300 overflow-hidden">
-      <Suspense fallback={<div>Loading chat...</div>}>
-        <div className="w-full max-w-md mx-auto bg-gray-100 p-4 pt-0 rounded-lg shadow-lg">
-          <Chat />
-        </div>
-      </Suspense>
-    </div>
+    <Suspense fallback={<div>Loading chat...</div>}>
+      <div className="w-full max-w-md mx-auto bg-gray-100 p-4 pt-0 rounded-lg shadow-lg">
+        <Chat />
+      </div>
+    </Suspense>
   );
 }

@@ -267,7 +267,7 @@ const InputBar: React.FC<{
 
 const MessageFeed: React.FC<{ chatID: string }> = ({ chatID }) => {
   const auth = useUserID();
-  const { data: messages, isLoading } = SubscribeToAIChatMessages({
+  const { data: messages } = SubscribeToAIChatMessages({
     chatID,
     auth,
   });
@@ -282,17 +282,15 @@ const MessageFeed: React.FC<{ chatID: string }> = ({ chatID }) => {
 
   // Scroll to bottom when messages change or load
   useEffect(() => {
-    if (!isLoading && messages) {
+    if (messages) {
       scrollToBottom();
     }
-  }, [messages, isLoading]);
+  }, [messages]);
 
-  return isLoading ? (
+  return !messages ? (
     <div className="flex justify-center my-4">
       <div className="animate-pulse text-gray-500">Loading messages...</div>
     </div>
-  ) : !messages ? (
-    <div>No mess</div>
   ) : messages.length === 0 ? (
     <div className="text-center text-gray-500 my-8">
       No messages yet. Start a conversation!
@@ -303,17 +301,14 @@ const MessageFeed: React.FC<{ chatID: string }> = ({ chatID }) => {
         const thisDate = new Date(msg.createdAt);
         if (
           i == 0 ||
-          new Date(messages[i - 1].createdAt).getTime() - thisDate.getTime() >
+          thisDate.getTime() - new Date(messages[i - 1].createdAt).getTime() >
             1000 * 60 * 15
         ) {
           return (
             <Fragment key={msg.id}>
               <SystemMessage
                 key={msg.id}
-                text={thisDate.toLocaleTimeString(undefined, {
-                  hour: "numeric",
-                  minute: "numeric",
-                })}
+                text={formattedDateString(thisDate)}
               />
               <ChatMessage message={msg} />
             </Fragment>
@@ -329,6 +324,67 @@ const MessageFeed: React.FC<{ chatID: string }> = ({ chatID }) => {
       <div ref={messagesEndRef} />
     </>
   );
+};
+
+/**
+ * Formats a date object into the most relevant short format
+ * Creates this string by deciding the inputs to Date.toLocaleString()
+ * @param date A date object that needs to be formatted
+ */
+const formattedDateString = (date: Date) => {
+  const now = new Date();
+
+  // Same day check
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (isToday) {
+    return date.toLocaleString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  // Yesterday check
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getFullYear() === yesterday.getFullYear() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getDate() === yesterday.getDate();
+
+  if (isYesterday) {
+    return (
+      "Yesterday at " +
+      date.toLocaleString(undefined, { hour: "numeric", minute: "2-digit" })
+    );
+  }
+
+  // Within the last week
+  const sixDaysAgo = new Date(now);
+  sixDaysAgo.setDate(now.getDate() - 6);
+
+  if (date >= sixDaysAgo) {
+    return (
+      date.toLocaleString(undefined, { weekday: "long" }) +
+      " at " +
+      date.toLocaleString(undefined, { hour: "numeric", minute: "2-digit" })
+    );
+  }
+
+  // Same year
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleString(undefined, { month: "short", day: "numeric" });
+  }
+
+  // Different year
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 };
 
 const ChatWindow = () => {

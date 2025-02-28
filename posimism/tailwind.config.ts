@@ -9,6 +9,23 @@ export default {
   ],
   theme: {
     extend: {
+      colors: {
+        bismark: {
+          /* https://www.tailwindshades.com/#color=194.44444444444446%2C28.421052631578952%2C37.254901960784316&step-up=8&step-down=13&hue-shift=-8&name=bismark&base-stop=7&v=1&overrides=e30%3D */
+          DEFAULT: "#446D7A",
+          50: "#DCE9EB",
+          100: "#CFE1E4",
+          200: "#B5D0D5",
+          300: "#9ABFC7",
+          400: "#80ADB8",
+          500: "#669BAA",
+          600: "#538594",
+          700: "#446D7A",
+          800: "#2C464F",
+          900: "#152025",
+          950: "#090E10",
+        },
+      },
       keyframes: {
         float: {
           "0%, 100%": { transform: "translateY(0)" },

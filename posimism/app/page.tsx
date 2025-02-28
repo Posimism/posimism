@@ -1,17 +1,11 @@
-import { Pacifico } from "next/font/google";
 import React from "react";
-
-const pacifico = Pacifico({
-  subsets: ["latin"],
-  weight: "400",
-});
 
 export default function Home() {
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen px-4 bg-gradient-to-tr from-purple-300 via-blue-200 to-green-300 overflow-hidden">
+    <>
       <div className="relative z-10 text-left w-full max-w-2xl">
         <h1
-          className={`text-center text-5xl font-bold text-gray-900 mb-6 ${pacifico.className}`}
+          className={`text-center text-5xl font-bold text-gray-900 mb-6 font-pacifico`}
         >
           Posimism
         </h1>
@@ -39,6 +33,6 @@ export default function Home() {
           contactus@posimism.com
         </a>
       </footer>
-    </div>
+    </>
   );
 }
