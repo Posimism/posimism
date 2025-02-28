@@ -7,7 +7,7 @@ import { PanelLeftIcon } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/utils/tailwind-utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/my_other_button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {

@@ -4,15 +4,20 @@
 import { withAuthenticator } from "@aws-amplify/ui-react";
 import '@aws-amplify/ui-react/styles.css';
 import { AuthUser } from "aws-amplify/auth";
-import { redirect } from "next/navigation";
+import { redirect, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
 function Login({ user }: { user?: AuthUser }) {
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo') || '/';
+  
   useEffect(() => {
     if (user) {
-      redirect("/");
+      // Redirect to the original page or fallback to home
+      redirect(returnTo);
     }
-  }, [user]);
+  }, [user, returnTo]);
+  
   return null;
 }
 

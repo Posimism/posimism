@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/my_other_button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Menu } from "lucide-react";
 

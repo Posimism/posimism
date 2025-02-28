@@ -5,6 +5,7 @@ import ConfigureAmplifyClientSide from "@/components/ConfigureAmplify";
 import QueryClientProviderProvider from "@/components/QueryClientProviderProvider";
 import { LogInOutToggle } from "@/components/LogInOutToggle";
 import Link from "next/link";
+import { AuthDialogProvider } from "@/components/AuthenticatorModal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,16 +40,20 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-tr from-purple-300 via-blue-200 to-green-300 min-h-screen`}
       >
-        <QueryClientProviderProvider>
-          <ConfigureAmplifyClientSide />
-          <nav className="flex justify-between items-center bg-gray-800 text-white p-2">
-            <Link href={"/"} className="text-2xl font-pacifico">Posimism</Link>
-            <LogInOutToggle />
-          </nav>
-          <div className="relative flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] px-2 overflow-hidden pt-4">
-            {children}
-          </div>
-        </QueryClientProviderProvider>
+        <ConfigureAmplifyClientSide />
+        <AuthDialogProvider>
+          <QueryClientProviderProvider>
+            <nav className="flex justify-between items-center bg-gray-800 text-white p-2">
+              <Link href={"/"} className="text-2xl font-pacifico">
+                Posimism
+              </Link>
+              <LogInOutToggle />
+            </nav>
+            <div className="relative flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] px-2 overflow-hidden pt-4">
+              {children}
+            </div>
+          </QueryClientProviderProvider>
+        </AuthDialogProvider>
       </body>
     </html>
   );

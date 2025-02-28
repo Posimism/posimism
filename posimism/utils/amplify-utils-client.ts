@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { fetchAuthSession, fetchUserAttributes } from 'aws-amplify/auth';
-import type { AuthMode } from '@aws-amplify/data-schema/runtime';
+import { useState, useEffect, useCallback } from "react";
+import { fetchAuthSession, fetchUserAttributes } from "aws-amplify/auth";
+import type { AuthMode } from "@aws-amplify/data-schema/runtime";
 
 export type UserIDResult = {
   id: string;
@@ -30,7 +30,7 @@ export async function getUserID(): Promise<UserIDResult> {
         isAuthenticated: true,
         authMode: "userPool" as AuthMode,
       };
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       // User is not authenticated, get identity ID from credentials
       const session = await fetchAuthSession();
@@ -63,10 +63,11 @@ export function useUserID() {
   });
 
   const fetchUserID = useCallback(async () => {
-    setUserState(prev => ({ ...prev, isLoading: true, error: null }));
-    
+    setUserState((prev) => ({ ...prev, isLoading: true, error: null }));
+
     try {
       const result = await getUserID();
+      console.log({ result });
       setUserState({
         ...result,
         isLoading: false,
@@ -74,10 +75,10 @@ export function useUserID() {
       });
     } catch (error) {
       console.error("Error getting user identifier:", error);
-      setUserState(prev => ({ 
-        ...prev, 
-        isLoading: false, 
-        error: error instanceof Error ? error : new Error(String(error)) 
+      setUserState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error : new Error(String(error)),
       }));
     }
   }, []);
@@ -87,8 +88,8 @@ export function useUserID() {
   }, [fetchUserID]);
 
   // Include a refresh method to allow manual refreshes
-  return { 
-    ...userState, 
-    refresh: fetchUserID 
+  return {
+    ...userState,
+    refresh: fetchUserID,
   };
 }
