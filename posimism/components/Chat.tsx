@@ -230,40 +230,45 @@ const InputBar: React.FC<{
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex items-stretch bg-white rounded-3xl px-4 py-1.5 mt-2 shadow-md"
-    >
-      <textarea
-        ref={textareaRef}
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Type a message..."
-        className="w-full outline-none text-gray-700 resize-none min-h-[24px] max-h-[150px] py-1.5 overflow-y-auto"
-        rows={1}
-        onInput={autoResizeTextarea}
-      />
-      <button
-        type="submit"
-        disabled={!inputValue.trim() || isPending}
-        className={cn(
-          "ml-2 p-2 rounded-full flex items-center justify-center transition-colors aspect-square self-end",
-          inputValue.trim()
-            ? "bg-gradient-to-r from-blue-400 to-cyan-400 text-white"
-            : "bg-gray-200 text-gray-400"
-        )}
+    <>
+      <form
+        onSubmit={handleSubmit}
+        className="flex items-stretch bg-white rounded-3xl px-4 py-1.5 mt-2 shadow-md"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          className="w-5 h-5 -rotate-45"
+        <textarea
+          ref={textareaRef}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Type a message..."
+          className="w-full outline-none text-gray-700 resize-none min-h-[24px] max-h-[150px] py-1.5 overflow-y-auto"
+          rows={1}
+          onInput={autoResizeTextarea}
+        />
+        <button
+          type="submit"
+          disabled={!inputValue.trim() || isPending}
+          className={cn(
+            "ml-2 p-2 rounded-full flex items-center justify-center transition-colors aspect-square self-end",
+            inputValue.trim()
+              ? "bg-gradient-to-r from-blue-400 to-cyan-400 text-white"
+              : "bg-gray-200 text-gray-400"
+          )}
         >
-          <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-        </svg>
-      </button>
-    </form>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="w-5 h-5 -rotate-45"
+          >
+            <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+          </svg>
+        </button>
+      </form>
+      <p className="text-xs text-gray-500 mt-2">
+        The contents of this chat may be reviewed to improve Posimism.com
+      </p>
+    </>
   );
 };
 
