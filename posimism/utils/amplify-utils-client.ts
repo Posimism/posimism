@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { fetchAuthSession, fetchUserAttributes } from "aws-amplify/auth";
 import type { AuthMode } from "@aws-amplify/data-schema/runtime";
+import { useAuthenticator } from "@aws-amplify/ui-react";
 
 export type UserIDResult = {
   id: string;
@@ -62,12 +63,13 @@ export function useUserID() {
     error: null,
   });
 
+  // Subscribe to auth state changesn
+  const { authStatus } = useAuthenticator((context) => [context.authStatus]);
   const fetchUserID = useCallback(async () => {
     setUserState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
       const result = await getUserID();
-      console.log({ result });
       setUserState({
         ...result,
         isLoading: false,
@@ -85,7 +87,7 @@ export function useUserID() {
 
   useEffect(() => {
     fetchUserID();
-  }, [fetchUserID]);
+  }, [fetchUserID, authStatus]);
 
   // Include a refresh method to allow manual refreshes
   return {
