@@ -3,16 +3,23 @@
 import {
   useState,
   useCallback,
-  useEffect,
   createContext,
   useContext,
+  useEffect,
 } from "react";
 import { AuthUser } from "aws-amplify/auth";
 import * as React from "react";
 import { Authenticator } from "@aws-amplify/ui-react";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 import "@aws-amplify/ui-react/styles.css";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+
+// Import Dialog components from your UI library
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "./ui/dialog";
 
 // Create context for auth dialog
 interface AuthDialogContextType {
@@ -24,7 +31,6 @@ interface AuthDialogContextType {
   setAuthDialogOpen: (open: boolean) => void;
   onAuthSuccess: (user: AuthUser) => void;
   hideSignUp?: boolean;
-  variation?: "default" | "modal";
 }
 
 const AuthDialogContext = createContext<AuthDialogContextType | undefined>(
@@ -35,12 +41,10 @@ export function AuthDialogProvider({
   children,
   onAuthSuccess,
   hideSignUp = false,
-  variation = "default",
 }: {
   children: React.ReactNode;
   onAuthSuccess?: (user: AuthUser) => void;
   hideSignUp?: boolean;
-  variation?: "default" | "modal";
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [initialState, setInitialState] = useState<"signIn" | "signUp">(
@@ -77,14 +81,13 @@ export function AuthDialogProvider({
     setAuthDialogOpen: setIsOpen,
     onAuthSuccess: handleAuthSuccess,
     hideSignUp,
-    variation,
   };
 
   return (
     <Authenticator.Provider>
       <AuthDialogContext.Provider value={value}>
         {children}
-        <AuthDialog />
+        {isOpen && <AuthenticatorModal />}
       </AuthDialogContext.Provider>
     </Authenticator.Provider>
   );
@@ -98,45 +101,15 @@ export function useAuthDialog(): AuthDialogContextType {
   return context;
 }
 
-// AuthDialog now consumes the context directly
-function AuthDialog() {
+function AuthenticatorModal() {
   const {
     isOpen,
     initialState,
     setAuthDialogOpen,
     onAuthSuccess,
     hideSignUp = false,
-    variation = "default",
   } = useAuthDialog();
 
-  return (
-    <Dialog open={isOpen} onOpenChange={setAuthDialogOpen}>
-      <DialogContent className="max-w-md sm:max-w-lg md:max-w-xl">
-        <AuthDialogContent
-          initialState={initialState}
-          hideSignUp={hideSignUp}
-          variation={variation}
-          onOpenChange={setAuthDialogOpen}
-          onAuthSuccess={onAuthSuccess}
-        />
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function AuthDialogContent({
-  initialState,
-  hideSignUp,
-  variation,
-  onOpenChange,
-  onAuthSuccess,
-}: {
-  initialState: "signIn" | "signUp";
-  hideSignUp: boolean;
-  variation: "default" | "modal";
-  onOpenChange: (open: boolean) => void;
-  onAuthSuccess?: (user: AuthUser) => void;
-}) {
   const { authStatus, user } = useAuthenticator((context) => [
     context.authStatus,
     context.user,
@@ -144,16 +117,27 @@ function AuthDialogContent({
 
   useEffect(() => {
     if (authStatus === "authenticated" && user) {
-      onOpenChange(false);
+      setAuthDialogOpen(false);
       onAuthSuccess?.(user as AuthUser);
     }
-  }, [authStatus, user, onOpenChange, onAuthSuccess]);
+  }, [authStatus, user, setAuthDialogOpen, onAuthSuccess]);
 
   return (
-    <Authenticator
-      initialState={initialState}
-      hideSignUp={hideSignUp}
-      variation={variation}
-    />
+    <Dialog open={isOpen} onOpenChange={setAuthDialogOpen}>
+      <DialogContent className="max-w-md sm:max-w-lg">
+        {/* Add the required accessibility elements */}
+        <DialogTitle className="sr-only">Authentication</DialogTitle>
+        <DialogDescription className="sr-only">
+          Sign in or create an account
+        </DialogDescription>
+
+        {/* The Authenticator itself, not in modal mode */}
+        <Authenticator
+          initialState={initialState}
+          hideSignUp={hideSignUp}
+          // Remove the variation="modal" and modalProps
+        />
+      </DialogContent>
+    </Dialog>
   );
 }
