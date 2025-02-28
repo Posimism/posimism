@@ -49,7 +49,7 @@ export default function RootLayout({
               </Link>
               <LogInOutToggle />
             </nav>
-            <div className="relative flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] px-2 overflow-hidden pt-4">
+            <div className="relative flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] overflow-hidden pt-4">
               {children}
             </div>
           </QueryClientProviderProvider>
