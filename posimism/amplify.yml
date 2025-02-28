@@ -1,6 +1,7 @@
 version: 1
 applications:
-  - backend:
+  - appRoot: "posimism"
+    backend:
       phases:
         build:
           commands:
@@ -25,7 +26,7 @@ applications:
                   npx ampx generate outputs --branch dev --app-id $AWS_APP_ID
                   ;;
               esac
-  - frontend:
+    frontend:
       phases:
         preBuild:
           commands:
@@ -41,4 +42,3 @@ applications:
         paths:
           - .next/cache/**/*
           - .npm/**/*
-      appRoot: "posimism"
