@@ -45,6 +45,7 @@
     "esbuild": "^0.25.0",
     "eslint": "^9",
     "eslint-config-next": "15.2.0",
+    "openai": "^4.86.1",
     "postcss": "^8",
     "tailwindcss": "^4.0.9",
     "tsx": "^4.19.3",
