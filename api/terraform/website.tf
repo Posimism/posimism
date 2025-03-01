@@ -216,22 +216,22 @@ resource "aws_s3_bucket_policy" "static_website_bucket_policy" {
   policy = data.aws_iam_policy_document.static_website_bucket_policy.json
 }
 
-resource "null_resource" "deploy" {
-  triggers = {
-    src_dir_hash = sha256(join("", [for f in sort(fileset(var.build_dir, "./**/*")) : filesha256("${var.build_dir}/${f}") if !contains(var.ignore_files, f) && !anytrue([for dir in var.ignore_dirs : strcontains(f, "${dir}/")])]))
-  }
+# resource "null_resource" "deploy" {
+#   triggers = {
+#     src_dir_hash = sha256(join("", [for f in sort(fileset(var.build_dir, "./**/*")) : filesha256("${var.build_dir}/${f}") if !contains(var.ignore_files, f) && !anytrue([for dir in var.ignore_dirs : strcontains(f, "${dir}/")])]))
+#   }
 
-  depends_on = [aws_s3_bucket.static_website, aws_amplify_branch.prod, aws_s3_bucket_policy.static_website_bucket_policy]
+#   depends_on = [aws_s3_bucket.static_website, aws_amplify_branch.prod, aws_s3_bucket_policy.static_website_bucket_policy]
 
-  provisioner "local-exec" {
-    command = "aws s3 sync --size-only ${var.build_dir} s3://${aws_s3_bucket.static_website.id} && aws amplify start-deployment --app-id ${aws_amplify_app.website.id} --branch-name ${aws_amplify_branch.prod.branch_name} --source-url s3://${aws_s3_bucket.static_website.id} --source-url-type BUCKET_PREFIX"
-  }
+#   provisioner "local-exec" {
+#     command = "aws s3 sync --size-only ${var.build_dir} s3://${aws_s3_bucket.static_website.id} && aws amplify start-deployment --app-id ${aws_amplify_app.website.id} --branch-name ${aws_amplify_branch.prod.branch_name} --source-url s3://${aws_s3_bucket.static_website.id} --source-url-type BUCKET_PREFIX"
+#   }
 
-}
+# }
 
 resource "aws_amplify_domain_association" "website" {
   domain_name = var.domain_name
-  app_id      = aws_amplify_app.website.id
+  app_id      = "d4ybh4zwdi6pz"
 
   sub_domain {
     branch_name = aws_amplify_branch.prod.branch_name
