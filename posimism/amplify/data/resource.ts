@@ -1,4 +1,4 @@
-import { saveAndGenerateMessage } from "../functions/save-and-generate-message/resource.js";
+import { saveAndGenerateMessage } from "../functions/save-and-generate-message/resource";
 import {
   type ClientSchema,
   a,
