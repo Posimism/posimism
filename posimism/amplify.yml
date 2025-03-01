@@ -11,11 +11,11 @@ applications:
               case "${AWS_BRANCH}" in
                 main)
                   echo "Deploying main branch..."
-                  npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+                  npx ampx pipeline-deploy --debug --branch $AWS_BRANCH --app-id $AWS_APP_ID
                   ;;
                 dev)
                   echo "Deploying dev branch..."
-                  npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+                  npx ampx pipeline-deploy --debug --branch $AWS_BRANCH --app-id $AWS_APP_ID
                   ;;
                 pr-*)
                   echo "Deploying pull request branch..."
