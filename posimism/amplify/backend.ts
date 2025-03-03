@@ -10,6 +10,11 @@ const backend = defineBackend({
   data,
 });
 
+// export const saveAndGenerateAiMessageSource  = backend.data.addLambdaDataSource(
+//   "saveAndGenerateAiMessageSource",
+//   backend.data.resources.functions.saveAndGenerateAiMessage
+// );
+
 const { cfnResources } = backend.auth.resources;
 const { cfnUserPool, cfnUserPoolClient } = cfnResources;
 

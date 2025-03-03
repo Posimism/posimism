@@ -1,6 +1,5 @@
 import { generateClient } from "aws-amplify/data";
-import type { Schema } from "./../../data/resource";
-import { AppSyncIdentity, AppSyncIdentityCognito, AppSyncIdentityIAM } from "aws-lambda";
+import type { Schema } from "../../data/resource";
 import { OpenAI } from "openai";
 import { Amplify } from "aws-amplify";
 import { getAmplifyDataClientConfig } from "@aws-amplify/backend/function/runtime";
@@ -17,14 +16,14 @@ const client = generateClient<Schema>();
 // Use environment variables for API key in production
 const ai = new OpenAI({
   // apiKey: process.env.OPENAI_API_KEY || "your-api-key-placeholder",
-  apiKey: "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",
+  apiKey: "env.OPENAI_API_KEY",
 });
 
-export const handler: Schema["createMessage"]["functionHandler"] = async (
-  event
+export const handler/* : Schema["createMessage"]["functionHandler"] */ = async (
+  event: {arguments: { chatId: string, msg: string }, identity: {sub?: string, cognitoIdentityId?: string}}
 ) => {
   const {
-    arguments: { chatID, msg },
+    arguments: { chatId, msg },
   } = event;
   const identity = event.identity
 
@@ -38,9 +37,9 @@ export const handler: Schema["createMessage"]["functionHandler"] = async (
 
   // Verify chat ownership and fetch messages in parallel
   const [chatMetadata, existingMessages] = await Promise.all([
-    client.models.AIChat.get({ id: chatID }),
-    client.models.AiChatMessage.listAiChatMessageByChatIDAndCreatedAt(
-      { chatID },
+    client.models.AiChat.get({ id: chatId }),
+    client.models.AiChatMessage.listAiChatMessageByChatIdAndCreatedAt(
+      { chatId },
       { sortDirection: "DESC" }
     ),
   ]);
@@ -52,7 +51,7 @@ export const handler: Schema["createMessage"]["functionHandler"] = async (
 
   // Save user message
   await client.models.AiChatMessage.create({
-    chatID,
+    chatId,
     msg,
     owner: userID,
     isAi: false,
@@ -68,7 +67,7 @@ export const handler: Schema["createMessage"]["functionHandler"] = async (
   // First create the AI message record with empty content
   const initialAiMsg = await client.models.AiChatMessage.create({
     createdAt: new Date().toISOString(),
-    chatID,
+    chatId,
     owner: userID,
     isAi: true,
     msg: "",
@@ -107,7 +106,7 @@ export const handler: Schema["createMessage"]["functionHandler"] = async (
         sentChunks = chunkCount;
         await client.models.AiChatMessage.update({
           id: initialAiMsg.data.id,
-          chatID,
+          chatId,
           msg: aiResponse,
           streaming: true,
         });
@@ -117,7 +116,7 @@ export const handler: Schema["createMessage"]["functionHandler"] = async (
     // Mark as complete once done and send final message
     await client.models.AiChatMessage.update({
       id: initialAiMsg.data.id,
-      chatID,
+      chatId,
       msg: aiResponse,
       streaming: false,
     });
@@ -125,7 +124,7 @@ export const handler: Schema["createMessage"]["functionHandler"] = async (
     // Handle streaming errors
     await client.models.AiChatMessage.update({
       id: initialAiMsg.data.id,
-      chatID,
+      chatId,
       msg:
         `${aiResponse}\n-----\nSorry, I encountered an error finishing my response.` ||
         "Sorry, I encountered an error generating a response.",

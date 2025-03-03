@@ -1,13 +1,13 @@
-import { saveAndGenerateMessage } from "../functions/save-and-generate-message/resource";
 import {
   type ClientSchema,
   a,
   defineData,
 } from "@aws-amplify/backend";
+import { saveAndGenerateAiMessage } from "../functions/save-and-generate-Aimessage/resource";
 
 const schema = a
   .schema({
-    AIChat: a
+    AiChat: a
       .model({
         id: a.id().required(),
         createdAt: a
@@ -17,8 +17,14 @@ const schema = a
           .string()
           .required()
           .authorization((allow) => [allow.owner().to(["create","read"]), allow.guest().to(["create","read"])]),
+        model: 
+          a.string()
+          .authorization(() => []),
+        prompt:
+          a.string()
+          .authorization(() => []),
         name: a.string(),
-        messages: a.hasMany("AiChatMessage", "chatID"),
+        messages: a.hasMany("AiChatMessage", "chatId"),
       })
       .authorization((allow) => [
         allow.owner().to(["create", "read", "update"]),
@@ -30,8 +36,8 @@ const schema = a
       .model({
         id: a.id().required(),
         createdAt: a.datetime().required(),
-        chatID: a.id().required(),
-        chat: a.belongsTo("AIChat", "chatID"),
+        chatId: a.id().required(),
+        chat: a.belongsTo("AiChat", "chatId"),
         owner: a.string().required(),
         isAi: a.boolean().required(),
         msg: a.string().required(),
@@ -39,7 +45,7 @@ const schema = a
         quickReplies: a.hasMany("QuickReply", "msgId"),
       })
       .identifier(["id"])
-      .secondaryIndexes((index) => [index("chatID").sortKeys(["createdAt"])])
+      .secondaryIndexes((index) => [index("chatId").sortKeys(["createdAt"])])
       .authorization((allow) => [allow.owner().to(["read"]), allow.guest().to(["read"])]),
     createMessage: a
       .mutation()
@@ -49,7 +55,27 @@ const schema = a
       })
       .authorization((allow) => [allow.guest(), allow.authenticated()])
       .returns(a.ref("AiChatMessage"))
-      .handler(a.handler.function(saveAndGenerateMessage).async()),
+      .handler(a.handler.function(saveAndGenerateAiMessage).async()),
+    // bulkSendMessage: a
+    //   .mutation()
+    //   .arguments({
+    //     chatIds: a.id().array().required(),
+    //     msg: a.string().required(),
+    //   })
+    //   .authorization((allow) => [allow.group("Admin")])
+    //   .returns(a.ref("AiChatMessage"))
+    //   .handler([
+    //     a.handler.custom({
+    //       dataSource: a.ref("AiChat"),
+    //       entry: "./getAiChats.js",
+    //     }),
+    //     // a.handler.custom({
+    //     //   entry: "./checkOwnerships.js",
+    //     // }),
+    //     a.handler.custom({
+    //       dataSource: a.ref("saveAndGenerateAiMessagesSource"),
+    //       entry:"./triggerSaveAndGenerateAiMessages.js"
+    //     })]),
     QuickReply: a
       .model({
         msgId: a.id().required(),
@@ -61,7 +87,7 @@ const schema = a
       .secondaryIndexes((index) => [index("value").sortKeys(["owner"])])
       .authorization((allow) => [allow.owner(), allow.guest()]),
   })
-  .authorization((access) => [access.resource(saveAndGenerateMessage)]);
+  .authorization((access) => [access.resource(saveAndGenerateAiMessage)]);
 
 export type Schema = ClientSchema<typeof schema>;
 
