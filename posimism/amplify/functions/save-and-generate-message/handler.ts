@@ -1,6 +1,5 @@
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "./../../data/resource";
-import { AppSyncIdentity, AppSyncIdentityCognito, AppSyncIdentityIAM } from "aws-lambda";
 import { OpenAI } from "openai";
 import { Amplify } from "aws-amplify";
 import { getAmplifyDataClientConfig } from "@aws-amplify/backend/function/runtime";
@@ -17,7 +16,7 @@ const client = generateClient<Schema>();
 // Use environment variables for API key in production
 const ai = new OpenAI({
   // apiKey: process.env.OPENAI_API_KEY || "your-api-key-placeholder",
-  apiKey: "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",
+  apiKey: env.OPENAI_API_KEY,
 });
 
 export const handler: Schema["createMessage"]["functionHandler"] = async (
@@ -26,10 +25,13 @@ export const handler: Schema["createMessage"]["functionHandler"] = async (
   const {
     arguments: { chatID, msg },
   } = event;
-  const identity = event.identity
+  const identity = event.identity;
 
   // make sure authenticated then use userPool or identityPool
-  const userID = identity && (("sub" in identity && identity.sub)  || ("cognitoIdentityId"in identity && identity.cognitoIdentityId));
+  const userID =
+    identity &&
+    (("sub" in identity && identity.sub) ||
+      ("cognitoIdentityId" in identity && identity.cognitoIdentityId));
 
   // Validate user authentication
   if (!userID) {
@@ -95,15 +97,18 @@ export const handler: Schema["createMessage"]["functionHandler"] = async (
 
     let chunkCount = 0;
     let sentChunks = 0;
-    const start  = Date.now();
-    const maxWpms = 300 / 6000 ;
+    const start = Date.now();
+    const maxWpms = 300 / 6000;
     for await (const chunk of aiMsgStream) {
       const content = chunk.choices[0]?.delta?.content || "";
       aiResponse += content;
       ++chunkCount;
 
       // Only update if we have new content, are printing the first 10 words (chunks), or sending at less than 300 wpm
-      if (content && (sentChunks < 10 || sentChunks / ((Date.now() - start)) <= maxWpms)) {
+      if (
+        content &&
+        (sentChunks < 10 || sentChunks / (Date.now() - start) <= maxWpms)
+      ) {
         sentChunks = chunkCount;
         await client.models.AiChatMessage.update({
           id: initialAiMsg.data.id,
