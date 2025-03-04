@@ -97,6 +97,7 @@ const schema = a
       // auth handled by lambda resolver
       .returns(a.ref("Chat")),
     ChatPermissions: a.customType({
+      // view: a.boolean(), // assumed if you any entry
       owner: a.boolean(),
       post: a.boolean(),
       updateChat: a.boolean(),
@@ -119,8 +120,8 @@ const schema = a
       })
       .authorization(() => [])
       .secondaryIndexes((index) => [
-        index("chatId").sortKeys(["userId"]),
-        index("userId").sortKeys(["chatId"]),
+        index("chatId").sortKeys(["userId"]).name("ChatId-UserId"),
+        index("userId").sortKeys(["chatId"]).name("UserId-ChatId"),
       ])
       .identifier(["id"]),
     getChatMembers: a
@@ -269,7 +270,6 @@ const schema = a
         chatId: a.id().required(),
         chat: a.belongsTo("Chat", "chatId"),
         msg: a.string(),
-        editedAt: a.timestamp(),
         parentId: a.id(),
         parent: a.belongsTo("Message", "parentId"),
         replies: a.hasMany("Message", "parentId"),
@@ -277,11 +277,10 @@ const schema = a
         status: a.hasMany("MessageStatus", "msgId"),
       })
       .identifier(["id"])
-      .secondaryIndexes((index) => [index("chatId").sortKeys(["createdAt"])])
-      .authorization((allow) => [allow.owner()]),
-    MessageIdentifier: a.customType({
-      id: a.id().required(),
-    }),
+      .secondaryIndexes((index) => [
+        index("chatId").sortKeys(["createdAt"]).name("ChatId-CreatedAt"),
+      ])
+      .authorization((allow) => [allow.owner().to(["read"])]),
     getChatMessages: a
       .query()
       .arguments({
@@ -293,11 +292,11 @@ const schema = a
       .handler([
         a.handler.custom({
           dataSource: a.ref("ChatMember"),
-          entry: "./get-user-chat-auth",
+          entry: "./get-user-chat-auth.js",
         }),
         a.handler.custom({
           dataSource: a.ref("Message"),
-          entry: "./get-messages",
+          entry: "./get-messages.js",
         }),
       ]),
     createMessage: a
@@ -311,17 +310,21 @@ const schema = a
       .handler([
         a.handler.custom({
           dataSource: a.ref("ChatMember"),
-          entry: "./get-user-chat-auth",
+          entry: "./get-user-chat-auth.js",
         }),
         a.handler.custom({
           dataSource: a.ref("Message"),
-          entry: "./create-message",
+          entry: "./get-message.js",
+        }),
+        a.handler.custom({
+          dataSource: a.ref("Message"),
+          entry: "./create-message.js",
         }),
       ]),
-    deleteOwnMessage: a
+/*     deleteOwnMessage: a
       .mutation()
       .arguments({
-        Id: a.ref("MessageIdentifier").required(),
+        MsgId: a.id().required(),
       })
       .returns(a.ref("Message"))
       .handler([
@@ -329,12 +332,12 @@ const schema = a
           dataSource: a.ref("Message"),
           entry: "./delete-message",
         }),
-      ]),
-    deleteAnyMessage: a
+      ]), */
+/*     deleteAnyMessage: a
       .mutation()
       .arguments({
         ChatId: a.id().required(),
-        Id: a.ref("MessageIdentifier").required(),
+        MsgId: a.id().required(),
       })
       .returns(a.ref("Message"))
       .handler([
@@ -346,27 +349,27 @@ const schema = a
           dataSource: a.ref("Message"),
           entry: "./delete-message",
         }),
-      ]),
-    editMessage: a
+      ]), */
+    /* editMessage: a
       .mutation()
       .arguments({
-        Id: a.ref("MessageIdentifier").required(),
+        MsgId: a.id().required(),
         msg: a.string().required(),
       })
       .returns(a.ref("Message"))
       .handler([
-        a.handler.custom({
+        a.handler.custom({j
           dataSource: a.ref("Message"),
           entry: "./edit-message",
         }),
-      ]),
+      ]), */
     subscribeToChatMessages: a
       .subscription()
       .for([
         a.ref("createMessage"),
-        a.ref("deleteOwnMessage"),
-        a.ref("deleteAnyMessage"),
-        a.ref("editMessage"),
+        // a.ref("deleteOwnMessage"),
+        // a.ref("deleteAnyMessage"),
+        // a.ref("editMessage"),
       ])
       .handler([
         a.handler.custom({
@@ -378,7 +381,7 @@ const schema = a
           entry: "./chat-messages-filter",
         }),
       ]),
-    /*
+  /*
     QuickReply: a
       .model({
         msgId: a.id().required(),

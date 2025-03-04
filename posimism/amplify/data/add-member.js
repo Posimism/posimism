@@ -35,7 +35,7 @@ export function request(ctx) {
   };
 }
 
-export function repsponse(ctx) {
+export function response(ctx) {
   return ctx.result;
 }
 
