@@ -1,3 +1,4 @@
+import { authCreateConfirmation } from "../functions/authCreateConfirmation/resource";
 import { saveAndGenerateAiMessage } from "../functions/save-and-generate-Aimessage/resource";
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 
@@ -184,7 +185,7 @@ const schema = a
       })
       .handler(a.handler.function("./remove-members.ts"))
       .returns(a.ref("ChatMember").array()),
-    /* getUserChats: a
+    getUserChats: a
       .query()
       .arguments({
         after: a.ref("ChatIdentifier"),
@@ -197,6 +198,7 @@ const schema = a
           entry: "./get-user-chats",
         }),
       ]),
+    /*
     typingStatus: a.customType({
       chatId: a.id().required(),
       userId: a.id().required(),
@@ -235,6 +237,7 @@ const schema = a
           entry: "./is-typing-filter",
         }),
       ]),
+  */
     User: a
       .model({
         sub: a.id().required(),
@@ -242,10 +245,19 @@ const schema = a
         email: a
           .string()
           .required()
-          .authorization((allow) => [allow.owner().to(["read"])]),
+          .authorization((allow) => [allow.ownerDefinedIn("sub").to(["read"])]),
+        photoKey: a
+          .string()
+          .authorization((allow) => [allow.ownerDefinedIn("sub").to(["read"])]),
         chats: a.hasMany("ChatMember", "userId").authorization(() => []),
       })
-      .identifier(["sub"]),
+      .identifier(["sub"])
+      .authorization((allow) => [
+        allow.guest().to(["read"]),
+        allow.authenticated().to(["read"]),
+        allow.ownerDefinedIn("sub").to(["read", "update"]),
+      ]),
+    //TODO keep auth and this in sync
     // If lazy loading replies, extract message type and create another replies model (like quickReplies)
     Message: a
       .model({
@@ -366,6 +378,7 @@ const schema = a
           entry: "./chat-messages-filter",
         }),
       ]),
+    /*
     QuickReply: a
       .model({
         msgId: a.id().required(),
@@ -479,7 +492,10 @@ const schema = a
         }),
       ]), */
   })
-  .authorization((access) => [access.resource(saveAndGenerateAiMessage)]);
+  .authorization((access) => [
+    access.resource(saveAndGenerateAiMessage),
+    access.resource(authCreateConfirmation),
+  ]);
 
 export type Schema = ClientSchema<typeof schema>;
 
