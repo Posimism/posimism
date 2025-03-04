@@ -8,13 +8,13 @@ const schema = a
         createdAt: a.datetime(),
         owner: a.string().required(),
         name: a.string(),
-        members: a.hasMany("ChatMember", "chatID"),
-        messages: a.hasMany("Message", "chatID"),
+        members: a.hasMany("ChatMember", "chatId"),
+        messages: a.hasMany("Message", "chatId"),
       })
       .identifier(["id"])
       .secondaryIndexes((index) => [index("owner").sortKeys(["createdAt"])])
       .authorization((allow) => [allow.owner().to(["read"])]),
-    ChatIDentifer: a.customType({
+    ChatIdentifer: a.customType({
       id: a.id().required(),
     }),
     createChat: a
@@ -33,6 +33,7 @@ const schema = a
       // auth handled by lambda resolver
       .returns(a.ref("Chat")),
     ChatPermissions: a.customType({
+      owner: a.boolean(),
       post: a.boolean(),
       updateChat: a.boolean(),
       addMembers: a.boolean(),
@@ -44,42 +45,42 @@ const schema = a
     ChatMember: a
       .model({
         id: a.id().required(),
-        chatID: a.id().required(),
-        userID: a.id().required(),
+        chatId: a.id().required(),
+        userId: a.id().required(),
         createdAt: a.datetime(),
         updatedAt: a.timestamp(),
-        chat: a.belongsTo("Chat", "chatID"),
-        user: a.belongsTo("User", "userID"),
+        chat: a.belongsTo("Chat", "chatId"),
+        user: a.belongsTo("User", "userId"),
         perms: a.ref("ChatPermissions").required(),
       })
       .authorization(() => [])
       .secondaryIndexes((index) => [
-        index("chatID").sortKeys(["userID"]),
-        index("userID").sortKeys(["chatID"]),
+        index("chatId").sortKeys(["userId"]),
+        index("userId").sortKeys(["chatId"]),
       ])
       .identifier(["id"]),
     getChatMembers: a
       .mutation()
       .arguments({
-        chatID: a.id().required(),
+        chatId: a.id().required(),
         after: a.id(),
         limit: a.integer(),
       })
       .handler([
         a.handler.custom({
           dataSource: a.ref("ChatMember"),
-          entry: "./get-user-chat-auth",
+          entry: "./get-user-chat-auth.js",
         }),
         a.handler.custom({
           dataSource: a.ref("ChatMember"),
-          entry: "./get-members",
+          entry: "./get-members.js",
         }),
       ])
       .returns(a.ref("ChatMember").array()),
-    addMember: a
+    addMember: a // Add or overwrite membershipo
       .mutation()
       .arguments({
-        chatID: a.id().required(),
+        chatId: a.id().required(),
         member: a.string().required(),
         perms: a.ref("ChatPermissions"),
       })
@@ -90,14 +91,14 @@ const schema = a
         }),
         a.handler.custom({
           dataSource: a.ref("ChatMember"),
-          entry: "./add-member",
+          entry: "./add-member.js",
         }),
       ])
       .returns(a.ref("ChatMember")),
     addMembers: a
       .mutation()
       .arguments({
-        chatID: a.id().required(),
+        chatId: a.id().required(),
         members: a.string().array().required(),
         perms: a.ref("ChatPermissions").array().required(),
       })
@@ -112,22 +113,13 @@ const schema = a
         }),
       ])
       .returns(a.ref("ChatMember").array()),
-    removeMember: a
+    removeMembers: a
       .mutation()
       .arguments({
-        chatID: a.id().required(),
-        member: a.string(),
+        chatId: a.id().required(),
+        members: a.string().array().required(),
       })
-      .handler([
-        a.handler.custom({
-          dataSource: a.ref("ChatMember"),
-          entry: "./get-user-chat-auth",
-        }),
-        a.handler.custom({
-          dataSource: a.ref("ChatMember"),
-          entry: "./remove-member",
-        }),
-      ])
+      .handler(a.handler.function("./remove-members.ts"))
       .returns(a.ref("ChatMember")),
     getUserChats: a
       .query()
@@ -143,14 +135,14 @@ const schema = a
         }),
       ]),
     typingStatus: a.customType({
-      chatID: a.id().required(),
-      userID: a.id().required(),
+      chatId: a.id().required(),
+      userId: a.id().required(),
       isTyping: a.boolean().required(),
     }),
     setIsTyping: a
       .mutation()
       .arguments({
-        chatID: a.id().required(),
+        chatId: a.id().required(),
         isTyping: a.boolean().required(),
       })
       .handler([
@@ -167,7 +159,7 @@ const schema = a
     isTypingChatSubscription: a
       .subscription()
       .arguments({
-        chatID: a.id().required(),
+        chatId: a.id().required(),
       })
       .for(a.ref("setIsTyping"))
       .handler([
@@ -188,7 +180,7 @@ const schema = a
           .string()
           .required()
           .authorization((allow) => [allow.owner().to(["read"])]),
-        chats: a.hasMany("ChatMember", "userID").authorization(() => []),
+        chats: a.hasMany("ChatMember", "userId").authorization(() => []),
       })
       .identifier(["sub"]),
     // If lazy loading replies, extract message type and create another replies model (like quickReplies)
@@ -199,27 +191,27 @@ const schema = a
         createdAt: a
           .timestamp()
           .authorization((allow) => [allow.owner().to(["read"])]),
-        chatID: a.id().required(),
-        chat: a.belongsTo("Chat", "chatID"),
+        chatId: a.id().required(),
+        chat: a.belongsTo("Chat", "chatId"),
         msg: a.string(),
         editedAt: a.timestamp(),
-        parentID: a.id(),
-        parent: a.belongsTo("Message", "parentID"),
-        replies: a.hasMany("Message", "parentID"),
-        quickReplies: a.hasMany("QuickReply", "msgID"),
-        status: a.hasMany("MessageStatus", "msgID"),
+        parentId: a.id(),
+        parent: a.belongsTo("Message", "parentId"),
+        replies: a.hasMany("Message", "parentId"),
+        quickReplies: a.hasMany("QuickReply", "msgId"),
+        status: a.hasMany("MessageStatus", "msgId"),
       })
       .identifier(["id"])
-      .secondaryIndexes((index) => [index("chatID").sortKeys(["createdAt"])])
+      .secondaryIndexes((index) => [index("chatId").sortKeys(["createdAt"])])
       .authorization((allow) => [allow.owner()]),
-    MessageIDentifier: a.customType({
+    MessageIdentifier: a.customType({
       id: a.id().required(),
     }),
     getChatMessages: a
       .query()
       .arguments({
-        chatID: a.id().required(),
-        after: a.id(), // msgID
+        chatId: a.id().required(),
+        after: a.id(), // msgId
         limit: a.integer(),
       })
       .returns(a.ref("Message").array())
@@ -236,9 +228,9 @@ const schema = a
     createMessage: a
       .mutation()
       .arguments({
-        chatID: a.id().required(),
+        chatId: a.id().required(),
         msg: a.string().required(),
-        parentID: a.id(),
+        parentId: a.id(),
       })
       .returns(a.ref("Message"))
       .handler([
@@ -254,7 +246,7 @@ const schema = a
     deleteOwnMessage: a
       .mutation()
       .arguments({
-        ID: a.ref("MessageIDentifier").required(),
+        Id: a.ref("MessageIdentifier").required(),
       })
       .returns(a.ref("Message"))
       .handler([
@@ -266,8 +258,8 @@ const schema = a
     deleteAnyMessage: a
       .mutation()
       .arguments({
-        ChatID: a.id().required(),
-        ID: a.ref("MessageIDentifier").required(),
+        ChatId: a.id().required(),
+        Id: a.ref("MessageIdentifier").required(),
       })
       .returns(a.ref("Message"))
       .handler([
@@ -283,7 +275,7 @@ const schema = a
     editMessage: a
       .mutation()
       .arguments({
-        ID: a.ref("MessageIDentifier").required(),
+        Id: a.ref("MessageIdentifier").required(),
         msg: a.string().required(),
       })
       .returns(a.ref("Message"))
@@ -313,19 +305,19 @@ const schema = a
       ]),
     QuickReply: a
       .model({
-        msgID: a.id().required(),
+        msgId: a.id().required(),
         owner: a.string().required(),
         value: a.string().required(),
-        chatID: a.id().required(),
-        chat: a.belongsTo("Chat", "chatID"),
-        msg: a.belongsTo("Message", "msgID"),
+        chatId: a.id().required(),
+        chat: a.belongsTo("Chat", "chatId"),
+        msg: a.belongsTo("Message", "msgId"),
       })
-      .identifier(["msgID", "owner"])
+      .identifier(["msgId", "owner"])
       .authorization((allow) => [allow.owner().to(["read"])]), // use custom mutations for subscription simplicity
     upsertQuickReply: a
       .mutation()
       .arguments({
-        msgID: a.id().required(),
+        msgId: a.id().required(),
         value: a.string().required(),
       })
       .returns(a.ref("QuickReply"))
@@ -346,7 +338,7 @@ const schema = a
     deleteQuickReply: a
       .mutation()
       .arguments({
-        msgID: a.id().required(),
+        msgId: a.id().required(),
       })
       .returns(a.ref("QuickReply"))
       .handler([
@@ -358,7 +350,7 @@ const schema = a
     subscribeToQuickReplies: a
       .subscription()
       .arguments({
-        chatID: a.id().required(),
+        chatId: a.id().required(),
       })
       .for([a.ref("upsertQuickReply"), a.ref("deleteQuickReply")])
       .handler([
@@ -374,26 +366,26 @@ const schema = a
     ConfirmationStatus: a.customType({
       value: a.enum(["sent", "delivered", "read"]),
     }),
-    MessageStatusIDentifier: a.customType({
-      msgID: a.id().required(),
+    MessageStatusIdentifier: a.customType({
+      msgId: a.id().required(),
       owner: a.id().required(),
     }),
     MessageStatus: a
       .model({
-        msgID: a.id().required(),
+        msgId: a.id().required(),
         owner: a.id().required(),
         status: a.ref("MessageStatus").required(),
-        message: a.belongsTo("Message", "msgID"),
+        message: a.belongsTo("Message", "msgId"),
         user: a.belongsTo("User", "owner"),
-        chat: a.belongsTo("Chat", "chatID"),
+        chat: a.belongsTo("Chat", "chatId"),
       })
-      // .secondaryIndexes((index) => [index("msgID").sortKeys(["userID"])])
+      // .secondaryIndexes((index) => [index("msgId").sortKeys(["userId"])])
       .authorization((allow) => [allow.owner().to(["read"])])
-      .identifier(["msgID", "owner"]),
+      .identifier(["msgId", "owner"]),
     updateChatStatus: a // Updates statuses for all non-read messages
       .mutation()
       .arguments({
-        msgID: a.id().required(),
+        msgId: a.id().required(),
         status: a.ref("MessageStatus").required(),
       })
       .handler([
@@ -410,7 +402,7 @@ const schema = a
     subscribeToChatMessageStatuses: a
       .subscription()
       .arguments({
-        chatID: a.id().required(),
+        chatId: a.id().required(),
       })
       .for(a.ref("updateChatStatus"))
       .handler([
