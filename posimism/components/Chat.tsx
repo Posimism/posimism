@@ -49,7 +49,11 @@ const MessageFeed: React.FC<{
     chatId,
     auth,
   });
-  const messages = data as FrontEndMessage[] | FrontEndAiMessage[];
+  const messages = data as
+    | FrontEndMessage[]
+    | FrontEndAiMessage[]
+    | undefined
+    | null;
   const { mutate: createNewChat, isPending: isCreatingChat } =
     createChatHook(auth);
 
@@ -210,7 +214,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   //   return <SystemMessage message={message} />;
   // }
   const outgoing = // TODO recheck later
-    !("isAi" in message && message.isAi) || auth.id === message.owner;
+    !("isAi" in message && message.isAi) && auth.id === message.owner;
   const reactions = {} as { [emoji: string]: number }; // temporary
 
   // Display reactions if any exist
@@ -324,10 +328,6 @@ const AiChatInputBar: React.FC<{
     <InputBar
       chatId={chatId}
       sendMutation={{ mutate: sendMessage, isPending }}
-      createPayload={(text, chatId) => ({
-        message: text,
-        conversationId: chatId,
-      })}
     />
   );
 };
@@ -342,10 +342,6 @@ const ChatInputBar: React.FC<{
     <InputBar
       chatId={chatId}
       sendMutation={{ mutate: sendMessage, isPending }}
-      createPayload={(text, chatId) => ({
-        message: text,
-        conversationId: chatId,
-      })}
     />
   );
 };
@@ -358,8 +354,6 @@ const InputBar: React.FC<{
     mutate: (payload: any, options?: any) => void;
     isPending: boolean;
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createPayload?: (text: string, chatId: string) => any;
   onError?: (
     text: string,
     setInputValue: React.Dispatch<React.SetStateAction<string>>
@@ -368,7 +362,6 @@ const InputBar: React.FC<{
 }> = ({
   chatId,
   sendMutation,
-  createPayload = (text, chatId) => ({ chatId, text }),
   onError,
   placeholderText = "Type a message...",
 }) => {
@@ -382,23 +375,24 @@ const InputBar: React.FC<{
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim()) {
-      const payload = createPayload(inputValue, chatId);
-
-      sendMessage(payload, {
-        onError: () => {
-          if (onError) {
-            onError(inputValue, setInputValue);
-          } else {
-            // Default error handling
-            setInputValue((curr) => {
-              if (inputValue != curr) {
-                return inputValue + curr;
-              }
-              return curr;
-            });
-          }
-        },
-      });
+      sendMessage(
+        { chatId, text: inputValue },
+        {
+          onError: () => {
+            if (onError) {
+              onError(inputValue, setInputValue);
+            } else {
+              // Default error handling
+              setInputValue((curr) => {
+                if (inputValue != curr) {
+                  return inputValue + curr;
+                }
+                return curr;
+              });
+            }
+          },
+        }
+      );
       setInputValue("");
     }
   };

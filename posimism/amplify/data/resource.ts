@@ -121,9 +121,10 @@ const schema = a
         userId: a.id().required(),
         createdAt: a.datetime(),
         updatedAt: a.timestamp(),
+        perms: a.ref("ChatPermissions").required(),
         chat: a.belongsTo("Chat", "chatId"),
         user: a.belongsTo("User", "userId"),
-        perms: a.ref("ChatPermissions").required(),
+        // Figure out whether I can use the generated indexes rather than the .secondaryIndexes indexes
       })
       .authorization((allow) => [allow.ownerDefinedIn("userId").to(["read"])])
       .secondaryIndexes((index) => [

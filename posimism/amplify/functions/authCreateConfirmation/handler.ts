@@ -3,7 +3,7 @@ import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../data/resource";
 import { Amplify } from "aws-amplify";
 import { getAmplifyDataClientConfig } from "@aws-amplify/backend/function/runtime";
-import { env } from "$amplify/env/save-and-generate-message";
+import { env } from "$amplify/env/authCreateConfirmation";
 
 // Get configuration and set up clients
 const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(
@@ -13,11 +13,14 @@ Amplify.configure(resourceConfig, libraryOptions);
 const client = generateClient<Schema>();
 
 export const handler: PostConfirmationTriggerHandler = async (event) => {
-  await client.models.User.create({
+  console.info(JSON.stringify({ message: "Received event", event }));
+
+  const res = await client.models.User.create({
     sub: event.request.userAttributes.sub,
     email: event.request.userAttributes.email,
-    username: event.request.userAttributes.username,
+    username: event.request.userAttributes.preferred_username,
   });
-  
+  if (!res) console.error(JSON.stringify({ message: "unable to create user" }));
+
   return event;
 };

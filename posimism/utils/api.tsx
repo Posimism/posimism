@@ -105,7 +105,6 @@ export const SubscribeToAIChatMessages = ({
   const opts = queryOptions<FrontEndAiMessage[]>({
     queryKey,
     queryFn: () => [],
-    enabled: false,
   });
 
   useEffect(() => {

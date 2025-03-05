@@ -6,6 +6,7 @@ import QueryClientProviderProvider from "@/components/QueryClientProviderProvide
 import { LogInOutToggle } from "@/components/LogInOutToggle";
 import Link from "next/link";
 import { AuthDialogProvider } from "@/components/AuthenticatorModal";
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,6 +53,7 @@ export default function RootLayout({
             <div className="relative flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] overflow-hidden pt-4">
               {children}
             </div>
+            <ReactQueryDevtools initialIsOpen={false} />
           </QueryClientProviderProvider>
         </AuthDialogProvider>
       </body>

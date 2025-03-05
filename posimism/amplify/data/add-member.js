@@ -2,7 +2,7 @@
 import { util } from "@aws-appsync/utils";
 
 /**
- * @param {import('@aws-appsync/utils').Cosdfntext} ctx
+ * @param {import('@aws-appsync/utils').Context} ctx
  */
 export function request(ctx) {
   const { chatId, member, perms: permsToAdd } = ctx.args;
@@ -13,7 +13,7 @@ export function request(ctx) {
   /*
     perms has addMember and nothing they don't already have
   */
-  const { perms: userPerms } = prev.result;
+  const { perms: userPerms } = ctx.prev.result;
   if (
     !userPerms ||
     (!userPerms.owner && !userPerms.addMembers) ||
@@ -25,12 +25,12 @@ export function request(ctx) {
   return {
     operation: "PutItem",
     key: {
-      id: util.autoId()
+      id: util.autoId(),
     },
     attributeValues: util.dynamodb.toMapValues({
       chatId,
-      createdAt: util.time.nowISO8601(),
       userId: member,
+      createdAt: util.time.nowISO8601(),
       perms: permsToAdd,
     }),
   };
