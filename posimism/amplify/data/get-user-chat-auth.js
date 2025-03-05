@@ -3,7 +3,7 @@ import { util } from "@aws-appsync/utils";
 
 export function request(ctx) {
   const { chatId } = ctx.args;
-  if (!identity.sub) {
+  if (!ctx.identity || !ctx.identity.sub) {
     return util.unauthorized();
   }
 
@@ -20,7 +20,7 @@ export function request(ctx) {
 }
 
 export function response(ctx) {
-  ctx.stash.callerMembership = ctx.result
+  ctx.stash.callerMembership = ctx.result;
   return ctx.result;
 }
 

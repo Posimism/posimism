@@ -1,27 +1,24 @@
 // import * as ddb from "@aws-appsync/utils/dynamodb";
 import { util } from "@aws-appsync/utils";
 
+/**
+ * @param {import('@aws-appsync/utils').Context} ctx
+ */
 export function request(ctx) {
-  const { msgId, parentId } = ctx.args;
-  const stash = ctx.stash;
-  if (!ctx.identity || !ctx.identity.sub || !stash.callerMembership) {
+  const { sub } = ctx.args;
+  if (!ctx.identity || !ctx.identity.sub) {
     return util.unauthorized();
-  }
-
-  if (!msgId || !parentId) {
-    return { payload: null };
   }
 
   return {
     operation: "GetItem",
     key: {
-      id: msgId ?? parentId,
+      sub,
     },
   };
 }
 
 export function response(ctx) {
-  ctx.stash.retrievedMessage = ctx.result;
   return ctx.result;
 }
 

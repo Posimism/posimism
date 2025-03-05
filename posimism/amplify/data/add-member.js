@@ -1,9 +1,12 @@
 // import * as ddb from "@aws-appsync/utils/dynamodb";
 import { util } from "@aws-appsync/utils";
 
+/**
+ * @param {import('@aws-appsync/utils').Cosdfntext} ctx
+ */
 export function request(ctx) {
   const { chatId, member, perms: permsToAdd } = ctx.args;
-  if (!prev.result) {
+  if (!ctx.prev.result) {
     return util.unauthorized();
   }
 

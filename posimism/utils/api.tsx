@@ -243,7 +243,7 @@ export const SendChatMessage = (auth: ApiUserAuthentication) => {
       if (!dataClient || !owner || !authMode || authMode === "identityPool")
         throw new Error("Not authenticated");
 
-      return await dataClient.mutations.createMessage(
+      return await dataClient.mutations.createMessageMutation(
         {
           chatId: chatId,
           msg: text,
@@ -339,7 +339,7 @@ export const CreateChat = (auth: ApiUserAuthentication) => {
     mutationFn: async () => {
       if (!dataClient || !owner || !authMode || authMode === "identityPool")
         throw new Error("Not authenticated");
-      const response = await dataClient.mutations.createChat(
+      const response = await dataClient.mutations.createChatMutation(
         { name: "New Chat" },
         { authMode }
       );

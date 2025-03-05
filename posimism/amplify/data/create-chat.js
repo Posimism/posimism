@@ -2,8 +2,8 @@
 import { util } from "@aws-appsync/utils";
 
 export function request(ctx) {
-  const { name, identity } = ctx.args;
-  if (!identity || !identity.sub) {
+  const { name } = ctx.args;
+  if (!ctx.identity || !ctx.identity.sub) {
     return util.unauthorized();
   }
 
@@ -14,7 +14,7 @@ export function request(ctx) {
     },
     attributeValues: util.dynamodb.toMapValues({
       createdAt: util.time.nowISO8601(),
-      owner: identity.sub,
+      owner: ctx.identity.sub,
       name,
     }),
   };

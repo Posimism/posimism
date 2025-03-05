@@ -1,5 +1,5 @@
 import { authCreateConfirmation } from "../functions/authCreateConfirmation/resource";
-import { saveAndGenerateAiMessage } from "../functions/save-and-generate-Aimessage/resource";
+import { saveAndGenerateAiMessage } from "../functions/save-and-generate-AiMessage/resource";
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 
 const schema = a
@@ -39,7 +39,7 @@ const schema = a
         isAi: a.boolean().required(),
         msg: a.string().required(),
         streaming: a.boolean(),
-        quickReplies: a.hasMany("QuickReply", "msgId"),
+        quickReplies: a.hasMany("AiQuickReply", "msgId"),
       })
       .identifier(["id"])
       .secondaryIndexes((index) => [index("chatId").sortKeys(["createdAt"])])
@@ -81,24 +81,28 @@ const schema = a
     ChatIdentifer: a.customType({
       id: a.id().required(),
     }),
-    createChat: a
+    createChatMutation: a
       .mutation()
       .arguments({
         name: a.string(),
       })
-      .handler(a.handler.custom({
-        dataSource: a.ref("Chat"),
-        entry: "./create-chat.js",
-      }))
+      .handler(
+        a.handler.custom({
+          dataSource: a.ref("Chat"),
+          entry: "./create-chat.js",
+        })
+      )
+      .authorization((allow) => [allow.authenticated()])
       .returns(a.ref("Chat")),
-    deleteChat: a
-      .mutation()
-      .arguments({
-        id: a.id().required(),
-      })
-      .handler(a.handler.function("./delete-chat.ts")) // too much data for custom resolvers
-      // auth handled by lambda resolver
-      .returns(a.ref("Chat")),
+    // deleteChat: a
+    //   .mutation()
+    //   .arguments({
+    //     id: a.id().required(),
+    //   })
+    //   .handler(a.handler.function("./delete-chat.ts")) // too much data for custom resolvers
+    //   .authorization((allow) => [allow.authenticated()])
+    //   // auth handled by lambda resolver
+    //   .returns(a.ref("Chat")),
     ChatPermissions: a.customType({
       // view: a.boolean(), // assumed if you any entry
       owner: a.boolean(),
@@ -121,7 +125,7 @@ const schema = a
         user: a.belongsTo("User", "userId"),
         perms: a.ref("ChatPermissions").required(),
       })
-      .authorization(() => [])
+      .authorization((allow) => [allow.ownerDefinedIn("userId").to(["read"])])
       .secondaryIndexes((index) => [
         index("chatId").sortKeys(["userId"]).name("ChatId-UserId"),
         index("userId").sortKeys(["chatId"]).name("UserId-ChatId"),
@@ -134,6 +138,7 @@ const schema = a
         after: a.id(),
         limit: a.integer(),
       })
+      .authorization((allow) => [allow.authenticated()])
       .handler([
         a.handler.custom({
           dataSource: a.ref("ChatMember"),
@@ -152,6 +157,7 @@ const schema = a
         member: a.string().required(),
         perms: a.ref("ChatPermissions"),
       })
+      .authorization((allow) => [allow.authenticated()])
       .handler([
         a.handler.custom({
           dataSource: a.ref("ChatMember"),
@@ -163,33 +169,34 @@ const schema = a
         }),
       ])
       .returns(a.ref("ChatMember")),
-    // addMembers: a
-    //   .mutation()
-    //   .arguments({
-    //     chatId: a.id().required(),
-    //     members: a.string().array().required(),
-    //     perms: a.ref("ChatPermissions").array().required(),
-    //   })
-    //   .handler([
-    //     a.handler.custom({
-    //       dataSource: a.ref("ChatMember"),
-    //       entry: "./get-user-chat-auth.js",
-    //     }),
-    //     a.handler.custom({
-    //       dataSource: a.ref("ChatMember"),
-    //       entry: "./add-members.js",
-    //     }),
-    //   ])
-    //   .returns(a.ref("ChatMember").array()),
+    /* addMembers: a
+      .mutation()
+      .arguments({
+        chatId: a.id().required(),
+        members: a.string().array().required(),
+        perms: a.ref("ChatPermissions").array().required(),
+      })
+      .handler([
+        a.handler.custom({
+          dataSource: a.ref("ChatMember"),
+          entry: "./get-user-chat-auth.js",
+        }),
+        a.handler.custom({
+          dataSource: a.ref("ChatMember"),
+          entry: "./add-members.js",
+        }),
+      ])
+      .returns(a.ref("ChatMember").array()), */
     removeMembers: a
       .mutation()
       .arguments({
         chatId: a.id().required(),
         members: a.string().array().required(),
       })
+      .authorization((allow) => [allow.authenticated()])
       .handler(a.handler.function("./remove-members.ts"))
       .returns(a.ref("ChatMember").array()),
-    getUserChats: a
+    /* getUserChats: a
       .query()
       .arguments({
         after: a.ref("ChatIdentifier"),
@@ -201,7 +208,7 @@ const schema = a
           dataSource: a.ref("ChatMember"),
           entry: "./get-user-chats",
         }),
-      ]),
+      ]), */
     /*
     typingStatus: a.customType({
       chatId: a.id().required(),
@@ -257,12 +264,23 @@ const schema = a
       })
       .identifier(["sub"])
       .authorization((allow) => [
-        allow.guest().to(["read"]),
-        allow.authenticated().to(["read"]),
         allow.ownerDefinedIn("sub").to(["read", "update"]),
       ]),
+    getUserQuery: a
+      .query()
+      .arguments({
+        sub: a.id().required(),
+      })
+      .returns(a.ref("User"))
+      .authorization((allow) => [allow.authenticated()])
+      .handler([
+        a.handler.custom({
+          dataSource: a.ref("User"),
+          entry: "./get-user.js",
+        }),
+      ]),
     //TODO keep auth and this in sync
-    // If lazy loading replies, extract message type and create another replies model (like quickReplies)
+    // If lazy loading replies, exptract message type and create another replies model (like quickReplies)
     Message: a
       .model({
         id: a.id().required(),
@@ -277,8 +295,8 @@ const schema = a
         parentId: a.id(),
         parent: a.belongsTo("Message", "parentId"),
         replies: a.hasMany("Message", "parentId"),
-        quickReplies: a.hasMany("QuickReply", "msgId"),
-        status: a.hasMany("MessageStatus", "msgId"),
+        // quickReplies: a.hasMany("QuickReply", "msgId"),
+        // status: a.hasMany("MessageStatus", "msgId"),
       })
       .identifier(["id"])
       .secondaryIndexes((index) => [
@@ -293,6 +311,7 @@ const schema = a
         limit: a.integer(),
       })
       .returns(a.ref("Message").array())
+      .authorization((allow) => [allow.authenticated()])
       .handler([
         a.handler.custom({
           dataSource: a.ref("ChatMember"),
@@ -303,7 +322,7 @@ const schema = a
           entry: "./get-messages.js",
         }),
       ]),
-    createMessage: a
+    createMessageMutation: a
       .mutation()
       .arguments({
         chatId: a.id().required(),
@@ -374,19 +393,19 @@ const schema = a
         chatId: a.id().required(),
       })
       .for([
-        a.ref("createMessage"),
+        a.ref("createMessageMutation"),
         // a.ref("deleteOwnMessage"),
         // a.ref("deleteAnyMessage"),
         // a.ref("editMessage"),
       ])
+      .authorization((allow) => [allow.authenticated()])
       .handler([
         a.handler.custom({
           dataSource: a.ref("ChatMember"),
-          entry: "./get-user-chat-auth",
+          entry: "./get-user-chat-auth.js",
         }),
         a.handler.custom({
-          dataSource: a.ref("NONE"),
-          entry: "./chat-messages-filter", //TODO
+          entry: "./chat-messages-filter.js", //TODO
         }),
       ]),
     /*

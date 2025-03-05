@@ -2,8 +2,9 @@
 import { util } from "@aws-appsync/utils";
 
 export function request(ctx) {
-  const { chatId, stash } = ctx.args;
-  if (!identity.sub || !stash.callerMembership) {
+  const { chatId } = ctx.args;
+  const stash = ctx.stash;
+  if (!ctx.identity.sub || !stash.callerMembership) {
     return util.unauthorized();
   }
 
@@ -13,7 +14,7 @@ export function request(ctx) {
     expression: "chatId = :chatId",
     expressionValues: util.dynamodb.toMapValues({
       chatId,
-    }), 
+    }),
     scanIndexForward: false,
   };
 }
