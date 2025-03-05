@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { fetchAuthSession } from "aws-amplify/auth/server";
+import { fetchAuthSession } from "@aws-amplify/auth/server";
 
 import { runWithAmplifyServerContext } from "@/utils/amplify-utils-server";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   // Define routes that require authentication
-  const protectedRoutes: string[] = []; // ["/dashboard", "/profile"];
+  const protectedRoutes: string[] = ["/chat"]; // Add chat to protected routes
   // Check if the route starts with a protected prefix
   const requiresAuth = protectedRoutes.some((route) =>
     pathname.startsWith(route)
@@ -20,6 +20,7 @@ export async function middleware(request: NextRequest) {
     operation: async (contextSpec) => {
       try {
         const session = await fetchAuthSession(contextSpec, {});
+        console.log({ session })
         return session.tokens !== undefined;
       } catch (error) {
         console.log(error);
@@ -29,7 +30,10 @@ export async function middleware(request: NextRequest) {
   });
 
   if (!authenticated && requiresAuth) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    // Create login URL with returnTo parameter to redirect after authentication
+    const loginUrl = new URL("/login", request.url);
+    // loginUrl.searchParams.set("returnto", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   // For non-protected routes or if authenticated, continue normally

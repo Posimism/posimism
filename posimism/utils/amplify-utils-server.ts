@@ -9,6 +9,15 @@ import outputs from "@/amplify_outputs.json";
 
 export const { runWithAmplifyServerContext } = createServerRunner({
   config: outputs,
+  runtimeOptions: {
+    cookies: {
+      domain:
+        // process.env.NODE_ENV === "production" ? ".posimism.com" : "localhost",
+        "localhost",
+      sameSite: "strict",
+      maxAge: 3600 * 24 * 7,
+    },
+  },
 });
 
 export const cookiesClient = generateServerClientUsingCookies<Schema>({
