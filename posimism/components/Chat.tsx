@@ -3,18 +3,149 @@ import { cn } from "@/utils/tailwind-utils";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useUserID } from "@/utils/amplify-utils-client";
 import {
+  ApiUserAuthentication,
+  CreateAIChat,
   CreateChat,
+  FrontEndAiMessage,
   FrontEndMessage,
   GetOrCreateAIChat,
   SendAIChatMessage,
+  SendChatMessage,
+  SubscribeToAIChatMessages,
+  SubscribeToChatMessages,
 } from "@/utils/api";
-import { SubscribeToAIChatMessages } from "../utils/api";
 import { PiNotePencilLight } from "react-icons/pi";
 import { Button } from "./ui/button_shad_default";
 import { debounce } from "lodash";
+import { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+
+// Generic type for subscription functions
+interface MessageSubscriptionHook {
+  (params: { chatId: string; auth: ApiUserAuthentication }): UseQueryResult;
+}
+
+// Generic type for chat creation mutations
+interface ChatCreationHook {
+  (auth: ApiUserAuthentication): UseMutationResult<
+    unknown,
+    Error,
+    void,
+    unknown
+  >;
+}
+
+// Generic Message Feed component that can work with different backend services
+const MessageFeed: React.FC<{
+  chatId: string;
+  subscriptionHook: MessageSubscriptionHook;
+  createChatHook: ChatCreationHook;
+}> = ({
+  chatId,
+  subscriptionHook = SubscribeToAIChatMessages, // Default to AI messages
+  createChatHook = CreateAIChat, // Default to AI chat creation
+}) => {
+  const auth = useUserID();
+  const { data } = subscriptionHook({
+    chatId,
+    auth,
+  });
+  const messages = data as FrontEndMessage[] | FrontEndAiMessage[];
+  const { mutate: createNewChat, isPending: isCreatingChat } =
+    createChatHook(auth);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleCreateNewChat = useCallback(
+    debounce(() => createNewChat(), 2000, { leading: true }),
+    [createNewChat]
+  );
+
+  // Add ref for the container div
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+  };
+
+  // Scroll to bottom when messages change or load
+  useEffect(() => {
+    if (messages) {
+      // TODO: Don't scroll on every message update
+      scrollToBottom();
+    }
+  }, [messages]);
+
+  return !messages ? (
+    <div className="flex justify-center my-4">
+      <div className="animate-pulse text-gray-500">Loading messages...</div>
+    </div>
+  ) : messages.length === 0 ? (
+    <div className="text-center text-gray-500 my-8">
+      No messages yet. Start a conversation!
+    </div>
+  ) : (
+    <>
+      <Button
+        variant="outline"
+        className="absolute self-end px-1! z-10"
+        onClick={handleCreateNewChat}
+        disabled={isCreatingChat}
+      >
+        <PiNotePencilLight className="size-8" />
+      </Button>
+      {messages.map((msg, i) => {
+        const thisDate = new Date(msg.createdAt);
+        if (
+          i == 0 ||
+          thisDate.getTime() - new Date(messages[i - 1].createdAt).getTime() >
+            1000 * 60 * 15
+        ) {
+          return (
+            <Fragment key={msg.id}>
+              <SystemMessage
+                key={`system-${msg.id}`}
+                text={formattedDateString(thisDate)}
+              />
+              <ChatMessage message={msg} />
+            </Fragment>
+          );
+        }
+        return (
+          <Fragment key={msg.id}>
+            <ChatMessage message={msg} />
+          </Fragment>
+        );
+      })}
+      {/* Add an empty div at the end to scroll to */}
+      <div ref={messagesEndRef} />
+    </>
+  );
+};
+
+// Specialized feeds using the generic component
+const AiMessageFeed: React.FC<{ chatId: string }> = ({ chatId }) => {
+  return (
+    <MessageFeed
+      chatId={chatId}
+      subscriptionHook={SubscribeToAIChatMessages}
+      createChatHook={CreateAIChat}
+    />
+  );
+};
+
+// Add the regular chat feed that was missing
+const ChatMessageFeed: React.FC<{ chatId: string }> = ({ chatId }) => {
+  return (
+    <MessageFeed
+      chatId={chatId}
+      subscriptionHook={SubscribeToChatMessages} // You'll need to implement this
+      createChatHook={CreateChat} // You'll need to implement this
+    />
+  );
+};
 
 type ChatMessageProps = {
-  message: FrontEndMessage;
+  message: FrontEndMessage | FrontEndAiMessage;
   onReact?: (messageId: string, reaction: string) => void;
 } & React.HTMLAttributes<HTMLDivElement>;
 
@@ -73,11 +204,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   className,
   ...props
 }) => {
-  const { createdAt, status, msg, isAi, streaming } = message;
+  const { createdAt, status, msg } = message;
+  const auth = useUserID();
   // if (isSystemMessage) {
   //   return <SystemMessage message={message} />;
   // }
-  const outgoing = !isAi;
+  const outgoing = // TODO recheck later
+    !("isAi" in message && message.isAi) || auth.id === message.owner;
   const reactions = {} as { [emoji: string]: number }; // temporary
 
   // Display reactions if any exist
@@ -116,7 +249,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
       >
         <div className="font-medium">
           {msg}
-          {streaming && (
+          {"streaming" in message && message.streaming && (
             <span className="inline-flex ml-1">
               <span
                 className="animate-bounce"
@@ -181,29 +314,91 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   );
 };
 
-// Input bar component with send button
-const InputBar: React.FC<{
-  chatID: string;
-}> = ({ chatID }) => {
-  const [inputValue, setInputValue] = useState("");
+const AiChatInputBar: React.FC<{
+  chatId: string;
+}> = ({ chatId }) => {
   const auth = useUserID();
   const { mutate: sendMessage, isPending } = SendAIChatMessage(auth);
+
+  return (
+    <InputBar
+      chatId={chatId}
+      sendMutation={{ mutate: sendMessage, isPending }}
+      createPayload={(text, chatId) => ({
+        message: text,
+        conversationId: chatId,
+      })}
+    />
+  );
+};
+
+const ChatInputBar: React.FC<{
+  chatId: string;
+}> = ({ chatId }) => {
+  const auth = useUserID();
+  const { mutate: sendMessage, isPending } = SendChatMessage(auth);
+
+  return (
+    <InputBar
+      chatId={chatId}
+      sendMutation={{ mutate: sendMessage, isPending }}
+      createPayload={(text, chatId) => ({
+        message: text,
+        conversationId: chatId,
+      })}
+    />
+  );
+};
+
+// Input bar component with send button
+const InputBar: React.FC<{
+  chatId: string;
+  sendMutation?: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mutate: (payload: any, options?: any) => void;
+    isPending: boolean;
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createPayload?: (text: string, chatId: string) => any;
+  onError?: (
+    text: string,
+    setInputValue: React.Dispatch<React.SetStateAction<string>>
+  ) => void;
+  placeholderText?: string;
+}> = ({
+  chatId,
+  sendMutation,
+  createPayload = (text, chatId) => ({ chatId, text }),
+  onError,
+  placeholderText = "Type a message...",
+}) => {
+  const [inputValue, setInputValue] = useState("");
+  const auth = useUserID();
+
+  // Use provided mutation or fall back to default SendAIChatMessage
+  const defaultMutation = SendAIChatMessage(auth);
+  const { mutate: sendMessage, isPending } = sendMutation || defaultMutation;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim()) {
-      sendMessage(
-        { chatID, text: inputValue },
-        {
-          onError: () =>
+      const payload = createPayload(inputValue, chatId);
+
+      sendMessage(payload, {
+        onError: () => {
+          if (onError) {
+            onError(inputValue, setInputValue);
+          } else {
+            // Default error handling
             setInputValue((curr) => {
               if (inputValue != curr) {
                 return inputValue + curr;
               }
               return curr;
-            }),
-        }
-      );
+            });
+          }
+        },
+      });
       setInputValue("");
     }
   };
@@ -244,7 +439,7 @@ const InputBar: React.FC<{
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message..."
+          placeholder={placeholderText}
           className="w-full outline-none text-gray-700 resize-none min-h-[24px] max-h-[150px] py-1.5 overflow-y-auto"
           rows={1}
           onInput={autoResizeTextarea}
@@ -272,81 +467,6 @@ const InputBar: React.FC<{
       <p className="text-xs text-gray-500 mt-2">
         The contents of this chat may be reviewed to improve Posimism.com
       </p>
-    </>
-  );
-};
-
-const MessageFeed: React.FC<{ chatID: string }> = ({ chatID }) => {
-  const auth = useUserID();
-  const { data: messages } = SubscribeToAIChatMessages({
-    chatID,
-    auth,
-  });
-  const { mutate: createNewChat, isPending: isCreatingChat } = CreateChat(auth);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleCreateNewChat = useCallback(
-    debounce(() => createNewChat(), 2000, { leading: true }),
-    [createNewChat]
-  );
-
-  // Add ref for the container div
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Function to scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-  };
-
-  // Scroll to bottom when messages change or load
-  useEffect(() => {
-    if (messages) {
-      scrollToBottom();
-    }
-  }, [messages]);
-
-  return !messages ? (
-    <div className="flex justify-center my-4">
-      <div className="animate-pulse text-gray-500">Loading messages...</div>
-    </div>
-  ) : messages.length === 0 ? (
-    <div className="text-center text-gray-500 my-8">
-      No messages yet. Start a conversation!
-    </div>
-  ) : (
-    <>
-      <Button
-        variant="outline"
-        className="absolute self-end px-1! z-10"
-        onClick={handleCreateNewChat}
-        disabled={isCreatingChat}
-      >
-        <PiNotePencilLight className="size-8" />
-      </Button>
-      {messages.map((msg, i) => {
-        const thisDate = new Date(msg.createdAt);
-        if (
-          i == 0 ||
-          thisDate.getTime() - new Date(messages[i - 1].createdAt).getTime() >
-            1000 * 60 * 15
-        ) {
-          return (
-            <Fragment key={msg.id}>
-              <SystemMessage
-                key={msg.id}
-                text={formattedDateString(thisDate)}
-              />
-              <ChatMessage message={msg} />
-            </Fragment>
-          );
-        }
-        return (
-          <Fragment key={msg.id}>
-            <ChatMessage message={msg} />
-          </Fragment>
-        );
-      })}
-      {/* Add an empty div at the end to scroll to */}
-      <div ref={messagesEndRef} />
     </>
   );
 };
@@ -412,7 +532,7 @@ const formattedDateString = (date: Date) => {
   });
 };
 
-const ChatWindow = () => {
+export const AiChatWindow = () => {
   const userIDState = useUserID();
   const { data: chats } = GetOrCreateAIChat(userIDState || null);
   const { id: currentChatID } = (chats && chats[0]) || {};
@@ -420,11 +540,24 @@ const ChatWindow = () => {
   return (
     <div className="flex flex-col">
       <div className="flex flex-col space-y-2 mb-2 overflow-y-auto max-h-[400px] p-2">
-        {currentChatID && <MessageFeed chatID={currentChatID} />}
+        {currentChatID && <AiMessageFeed chatId={currentChatID} />}
       </div>
-      {currentChatID && <InputBar chatID={currentChatID} />}
+      {currentChatID && <AiChatInputBar chatId={currentChatID} />}
     </div>
   );
 };
 
-export default ChatWindow;
+export const ChatWindow = () => {
+  const userIDState = useUserID();
+  const { data: chats } = GetOrCreateAIChat(userIDState || null);
+  const { id: currentChatID } = (chats && chats[0]) || {};
+
+  return (
+    <div className="flex flex-col">
+      <div className="flex flex-col space-y-2 mb-2 overflow-y-auto max-h-[400px] p-2">
+        {currentChatID && <ChatMessageFeed chatId={currentChatID} />}
+      </div>
+      {currentChatID && <ChatInputBar chatId={currentChatID} />}
+    </div>
+  );
+};

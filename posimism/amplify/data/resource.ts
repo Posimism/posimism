@@ -21,7 +21,7 @@ const schema = a
             allow.guest().to(["create", "read"]),
           ]),
         name: a.string(),
-        messages: a.hasMany("AiChatMessage", "chatID"),
+        messages: a.hasMany("AiChatMessage", "chatId"),
       })
       .authorization((allow) => [
         allow.owner().to(["create", "read", "update"]),
@@ -33,8 +33,8 @@ const schema = a
       .model({
         id: a.id().required(),
         createdAt: a.datetime().required(),
-        chatID: a.id().required(),
-        chat: a.belongsTo("AIChat", "chatID"),
+        chatId: a.id().required(),
+        chat: a.belongsTo("AIChat", "chatId"),
         owner: a.string().required(),
         isAi: a.boolean().required(),
         msg: a.string().required(),
@@ -42,15 +42,15 @@ const schema = a
         quickReplies: a.hasMany("QuickReply", "msgId"),
       })
       .identifier(["id"])
-      .secondaryIndexes((index) => [index("chatID").sortKeys(["createdAt"])])
+      .secondaryIndexes((index) => [index("chatId").sortKeys(["createdAt"])])
       .authorization((allow) => [
         allow.owner().to(["read"]),
         allow.guest().to(["read"]),
       ]),
-    CreateAiMessage: a
+    createAiMessage: a
       .mutation()
       .arguments({
-        chatID: a.id().required(),
+        chatId: a.id().required(),
         msg: a.string().required(),
       })
       .authorization((allow) => [allow.guest(), allow.authenticated()])
@@ -85,8 +85,11 @@ const schema = a
       .mutation()
       .arguments({
         name: a.string(),
-        members: a.string().array(),
       })
+      .handler(a.handler.custom({
+        dataSource: a.ref("Chat"),
+        entry: "./create-chat.js",
+      }))
       .returns(a.ref("Chat")),
     deleteChat: a
       .mutation()
@@ -265,7 +268,8 @@ const schema = a
         id: a.id().required(),
         owner: a.string().required(),
         createdAt: a
-          .timestamp()
+          .datetime()
+          .required()
           .authorization((allow) => [allow.owner().to(["read"])]),
         chatId: a.id().required(),
         chat: a.belongsTo("Chat", "chatId"),
@@ -307,6 +311,7 @@ const schema = a
         parentId: a.id(),
       })
       .returns(a.ref("Message"))
+      .authorization((allow) => [allow.authenticated()])
       .handler([
         a.handler.custom({
           dataSource: a.ref("ChatMember"),
@@ -321,7 +326,7 @@ const schema = a
           entry: "./create-message.js",
         }),
       ]),
-/*     deleteOwnMessage: a
+    /*     deleteOwnMessage: a
       .mutation()
       .arguments({
         MsgId: a.id().required(),
@@ -333,7 +338,7 @@ const schema = a
           entry: "./delete-message",
         }),
       ]), */
-/*     deleteAnyMessage: a
+    /*     deleteAnyMessage: a
       .mutation()
       .arguments({
         ChatId: a.id().required(),
@@ -365,6 +370,9 @@ const schema = a
       ]), */
     subscribeToChatMessages: a
       .subscription()
+      .arguments({
+        chatId: a.id().required(),
+      })
       .for([
         a.ref("createMessage"),
         // a.ref("deleteOwnMessage"),
@@ -378,10 +386,10 @@ const schema = a
         }),
         a.handler.custom({
           dataSource: a.ref("NONE"),
-          entry: "./chat-messages-filter",
+          entry: "./chat-messages-filter", //TODO
         }),
       ]),
-  /*
+    /*
     QuickReply: a
       .model({
         msgId: a.id().required(),
