@@ -9,6 +9,7 @@ import {
   FrontEndAiMessage,
   FrontEndMessage,
   GetOrCreateAIChat,
+  GetOrCreateChat,
   SendAIChatMessage,
   SendChatMessage,
   SubscribeToAIChatMessages,
@@ -18,6 +19,7 @@ import { PiNotePencilLight } from "react-icons/pi";
 import { Button } from "./ui/button_shad_default";
 import { debounce } from "lodash";
 import { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import { redirect } from "next/navigation";
 
 // Generic type for subscription functions
 interface MessageSubscriptionHook {
@@ -543,8 +545,13 @@ export const AiChatWindow = () => {
 
 export const ChatWindow = () => {
   const userIDState = useUserID();
-  const { data: chats } = GetOrCreateAIChat(userIDState || null);
+  const { data: chats } = GetOrCreateChat(userIDState || null);
   const { id: currentChatID } = (chats && chats[0]) || {};
+  const { isAuthenticated, isLoading } = useUserID();
+
+  if (!isLoading && !isAuthenticated) {
+    redirect("/login?returnto=/chat");
+  }
 
   return (
     <div className="flex flex-col">

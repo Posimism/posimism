@@ -9,11 +9,10 @@ export function request(ctx) {
 
   return {
     operation: "PutItem",
-    key: {
-      id: util.autoId(),
-    },
+    key: util.dynamodb.toMapValues({ id: util.autoId() }),
     attributeValues: util.dynamodb.toMapValues({
       createdAt: util.time.nowISO8601(),
+      updatedAt: util.time.nowISO8601(),
       owner: ctx.identity.sub,
       name,
     }),

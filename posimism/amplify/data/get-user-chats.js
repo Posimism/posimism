@@ -5,22 +5,19 @@ import { util } from "@aws-appsync/utils";
  * @param {import('@aws-appsync/utils').Context} ctx
  */
 export function request(ctx) {
-  const { chatId, prev, nextToken, limit } = ctx.args;
-
-  if (!prev.result) {
-    return util.unauthorized();
-  }
-  const { perms } = prev.result;
-  if (!perms || (!perms.owner && !perms.listMembers)) {
+  const { nextToken, limit } = ctx.args;
+  if (!ctx.identity.sub) {
     return util.unauthorized();
   }
 
   return {
     operation: "Query",
-    index: "gsi-ChatMembers.chatId",
+    index: "UserId-ChatId",
     query: {
-      expression: "chatId = :chatId",
-      expressionValues: util.dynamodb.toMapValues({ ":chatId": chatId }),
+      expression: "userId = :userId",
+      expressionValues: util.dynamodb.toMapValues({
+        ":userId": ctx.identity.sub,
+      }),
     },
     limit: limit,
     nextToken: nextToken,
@@ -29,7 +26,7 @@ export function request(ctx) {
 
 export function response(ctx) {
   const { items, nextToken } = ctx.result;
-  return { members: items ?? [], next: nextToken };
+  return { chats: items ?? [], next: nextToken };
 }
 
 /* type DynamoDBQueryRequest = {

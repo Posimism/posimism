@@ -9,7 +9,7 @@ import { useEffect } from "react";
 
 function Login({ user }: { user?: AuthUser }) {
   const searchParams = useSearchParams();
-  const returnTo = searchParams.get('returnTo') || '/';
+  const returnTo = searchParams.get('returnto') || '/';
   
   useEffect(() => {
     if (user) {

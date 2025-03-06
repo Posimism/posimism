@@ -2,7 +2,7 @@
 import { util } from "@aws-appsync/utils";
 
 export function request(ctx) {
-  const { chatId, after, limit } = ctx.args;
+  const { chatId, nextToken, limit } = ctx.args;
   const stash = ctx.stash;
   if (!ctx.identity.sub || !stash.callerMembership) {
     return util.unauthorized();
@@ -14,18 +14,18 @@ export function request(ctx) {
     query: {
       expression: "chatId = :chatId",
       expressionValues: util.dynamodb.toMapValues({
-        chatId,
-        after,
+        ":chatId": chatId,
       }),
     },
     limit: limit,
-    nextToken: after,
+    nextToken: nextToken,
     scanIndexForward: false,
   };
 }
 
 export function response(ctx) {
-  return ctx.result;
+  const { items, nextToken } = ctx.result;
+  return { messages: items ?? [], next: nextToken };
 }
 
 /* type DynamoDBQueryRequest = {

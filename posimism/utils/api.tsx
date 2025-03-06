@@ -21,30 +21,33 @@ export const GetOrCreateAIChat = (auth: ApiUserAuthentication) => {
     queryFn: async () => {
       if (!dataClient || !owner || !authMode) return null;
 
-      try {
-        // First try to get existing chats
-        const existingChats =
-          await dataClient.models.AIChat.listAIChatByOwnerAndCreatedAt(
-            { owner },
-            { sortDirection: "DESC", limit: 1, authMode }
-          );
-
-        // If user has existing chats, use the most recent one
-        if (existingChats.data && existingChats.data.length > 0) {
-          return existingChats.data;
-        }
-
-        // Only create a new chat if no existing chats were found
-        const response = await dataClient.models.AIChat.create(
-          { owner, name: "New Chat" },
-          { authMode }
+      // First try to get existing chats
+      const existingChats =
+        await dataClient.models.AIChat.listAIChatByOwnerAndCreatedAt(
+          { owner },
+          { sortDirection: "DESC", limit: 1, authMode }
         );
 
-        return [response.data];
-      } catch (error) {
-        console.error("Error getting or creating chat:", error);
-        throw error;
+      // If user has existing chats
+      if (existingChats.data && existingChats.data.length > 0) {
+        return existingChats.data;
       }
+
+      if (existingChats.errors) {
+        throw new Error(existingChats.errors[0].message);
+      }
+
+      // Only create a new chat if no existing chats were found
+      const response = await dataClient.models.AIChat.create(
+        { owner, name: "New Chat" },
+        { authMode }
+      );
+
+      if (response.errors) {
+        throw new Error(response.errors[0].message);
+      }
+
+      return [response.data];
     },
     enabled: Boolean(dataClient && owner),
     staleTime: Infinity, // Chat ID shouldn't change during the session
@@ -63,6 +66,9 @@ export const CreateAIChat = (auth: ApiUserAuthentication) => {
         { owner, name: "New Chat" },
         { authMode }
       );
+      if (response.errors) {
+        throw new Error(response.errors[0].message);
+      }
       return response.data;
     },
     onSuccess: (data) => {
@@ -127,7 +133,10 @@ export const SubscribeToAIChatMessages = ({
         // Update the query cache with the latest messages
         queryClient.setQueryData(queryKey, formattedMessages);
       },
-      error: (error) => console.error("Subscription error:", error),
+      error: (error) => {
+        console.error("Subscription error:", error);
+        // TODO ideally represent this in tanstack state
+      },
     });
     return () => subscription.unsubscribe();
   }, [authMode, chatId, owner, queryClient, queryKey]);
@@ -143,7 +152,7 @@ export const SendAIChatMessage = (auth: ApiUserAuthentication) => {
       if (!dataClient || !owner || !authMode)
         throw new Error("Not authenticated");
 
-      return await dataClient.mutations.createAiMessage(
+      const res = await dataClient.mutations.createAiMessage(
         {
           chatId: chatId,
           msg: text,
@@ -152,6 +161,10 @@ export const SendAIChatMessage = (auth: ApiUserAuthentication) => {
           authMode,
         }
       );
+      if (res.errors) {
+        throw new Error(res.errors[0].message);
+      }
+      return res.data;
     },
     onMutate: async ({ chatId, text }) => {
       if (!owner) return;
@@ -206,7 +219,20 @@ export const SubscribeToChatMessages = ({
 
   const opts = queryOptions({
     queryKey,
-    queryFn: () => dataClient.queries.getChatMessages({ chatId }), // TODO pagination
+    queryFn: async () => {
+      if (!dataClient || !owner || !authMode) return [];
+      const res = await dataClient.queries.getChatMessages(
+        { chatId },
+        {
+          authMode,
+        }
+      );
+
+      if (res.errors) {
+        throw new Error(res.errors[0].message);
+      }
+      return res.data;
+    }, // TODO pagination
   });
 
   useEffect(() => {
@@ -242,7 +268,7 @@ export const SendChatMessage = (auth: ApiUserAuthentication) => {
       if (!dataClient || !owner || !authMode || authMode === "identityPool")
         throw new Error("Not authenticated");
 
-      return await dataClient.mutations.createMessageMutation(
+      const res = await dataClient.mutations.createMessageMutation(
         {
           chatId: chatId,
           msg: text,
@@ -251,6 +277,10 @@ export const SendChatMessage = (auth: ApiUserAuthentication) => {
           authMode,
         }
       );
+      if (res.errors) {
+        throw new Error(res.errors[0].message);
+      }
+      return res.data;
     },
     onMutate: async ({ chatId, text }) => {
       if (!owner) return;
@@ -300,30 +330,30 @@ export const GetOrCreateChat = (auth: ApiUserAuthentication) => {
     queryFn: async () => {
       if (!dataClient || !owner || !authMode) return null;
 
-      try {
-        // First try to get existing chats
-        const existingChats =
-          await dataClient.models.AIChat.listAIChatByOwnerAndCreatedAt(
-            { owner },
-            { sortDirection: "DESC", limit: 1, authMode }
-          );
+      console.log({ owner, authMode });
+      // First try to get existing chats
+      const existingChats = await dataClient.queries.getUserChats(
+        {},
+        { authMode }
+      );
 
-        // If user has existing chats, use the most recent one
-        if (existingChats.data && existingChats.data.length > 0) {
-          return existingChats.data;
-        }
-
-        // Only create a new chat if no existing chats were found
-        const response = await dataClient.models.AIChat.create(
-          { owner, name: "New Chat" },
-          { authMode }
-        );
-
-        return [response.data];
-      } catch (error) {
-        console.error("Error getting or creating chat:", error);
-        throw error;
+      // If user has existing chats
+      if (existingChats.data && existingChats.data.chats.length > 0) {
+        return existingChats.data.chats;
       }
+      if (existingChats.errors) {
+        throw new Error(existingChats.errors[0].message);
+      }
+
+      // Only create a new chat if no existing chats were found
+      const response = await dataClient.mutations.createChatMutation(
+        { name: "New Chat" },
+        { authMode }
+      );
+      if (response.errors) {
+        throw new Error(response.errors[0].message);
+      }
+      return [response.data];
     },
     enabled: Boolean(dataClient && owner),
     staleTime: Infinity, // Chat ID shouldn't change during the session
@@ -342,6 +372,9 @@ export const CreateChat = (auth: ApiUserAuthentication) => {
         { name: "New Chat" },
         { authMode }
       );
+      if (response.errors) {
+        throw new Error(response.errors[0].message);
+      }
       return response.data;
     },
     onSuccess: (data) => {

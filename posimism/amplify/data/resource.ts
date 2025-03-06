@@ -1,6 +1,7 @@
 import { authCreateConfirmation } from "../functions/authCreateConfirmation/resource";
 import { saveAndGenerateAiMessage } from "../functions/save-and-generate-AiMessage/resource";
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
+import { ChatMemberType, ChatType, MessageType } from "./resource_types";
 
 const schema = a
   .schema({
@@ -68,12 +69,10 @@ const schema = a
       .authorization((allow) => [allow.owner(), allow.guest()]),
     Chat: a
       .model({
-        id: a.id().required(),
-        createdAt: a.datetime(),
-        owner: a.string().required(),
-        name: a.string(),
+        ...ChatType,
         members: a.hasMany("ChatMember", "chatId"),
         messages: a.hasMany("Message", "chatId"),
+        // Add lastMessage for sorting
       })
       .identifier(["id"])
       .secondaryIndexes((index) => [index("owner").sortKeys(["createdAt"])])
@@ -116,12 +115,7 @@ const schema = a
     }),
     ChatMember: a
       .model({
-        id: a.id().required(),
-        chatId: a.id().required(),
-        userId: a.id().required(),
-        createdAt: a.datetime(),
-        updatedAt: a.timestamp(),
-        perms: a.ref("ChatPermissions").required(),
+        ...ChatMemberType,
         chat: a.belongsTo("Chat", "chatId"),
         user: a.belongsTo("User", "userId"),
         // Figure out whether I can use the generated indexes rather than the .secondaryIndexes indexes
@@ -132,13 +126,19 @@ const schema = a
         index("userId").sortKeys(["chatId"]).name("UserId-ChatId"),
       ])
       .identifier(["id"]),
+    BaseChatMember: a.customType(ChatMemberType),
+    PaginatedChatMembers: a.customType({
+      members: a.ref("BaseChatMember").array().required(),
+      nextToken: a.string(),
+    }),
     getChatMembers: a
       .mutation()
       .arguments({
         chatId: a.id().required(),
-        after: a.id(),
+        nextToken: a.string(),
         limit: a.integer(),
       })
+      .returns(a.ref("PaginatedChatMembers"))
       .authorization((allow) => [allow.authenticated()])
       .handler([
         a.handler.custom({
@@ -149,8 +149,7 @@ const schema = a
           dataSource: a.ref("ChatMember"),
           entry: "./get-members.js",
         }),
-      ])
-      .returns(a.ref("ChatMember").array()),
+      ]),
     addMember: a // Add or overwrite membershipo
       .mutation()
       .arguments({
@@ -197,19 +196,27 @@ const schema = a
       .authorization((allow) => [allow.authenticated()])
       .handler(a.handler.function("./remove-members.ts"))
       .returns(a.ref("ChatMember").array()),
-    /* getUserChats: a
+    ChatType: a.customType(ChatType),
+    PaginatedUserChats: a.customType({
+      chats: a.ref("ChatType").array().required(),
+      nextToken: a.string(),
+    }),
+    getUserChats: a
       .query()
       .arguments({
-        after: a.ref("ChatIdentifier"),
+        nextToken: a.string(),
         limit: a.integer(),
+        ascending: a.boolean(),
       })
-      .returns(a.ref("Chat").array())
+      .authorization((allow) => [allow.authenticated()])
+      .returns(a.ref("PaginatedUserChats"))
       .handler([
         a.handler.custom({
           dataSource: a.ref("ChatMember"),
-          entry: "./get-user-chats",
+          entry: "./get-user-chats.js",
         }),
-      ]), */
+        // TODO add the chats' last sent message
+      ]),
     /*
     typingStatus: a.customType({
       chatId: a.id().required(),
@@ -284,16 +291,8 @@ const schema = a
     // If lazy loading replies, exptract message type and create another replies model (like quickReplies)
     Message: a
       .model({
-        id: a.id().required(),
-        owner: a.string().required(),
-        createdAt: a
-          .datetime()
-          .required()
-          .authorization((allow) => [allow.owner().to(["read"])]),
-        chatId: a.id().required(),
+        ...MessageType,
         chat: a.belongsTo("Chat", "chatId"),
-        msg: a.string(),
-        parentId: a.id(),
         parent: a.belongsTo("Message", "parentId"),
         replies: a.hasMany("Message", "parentId"),
         // quickReplies: a.hasMany("QuickReply", "msgId"),
@@ -304,14 +303,19 @@ const schema = a
         index("chatId").sortKeys(["createdAt"]).name("ChatId-CreatedAt"),
       ])
       .authorization((allow) => [allow.owner().to(["read"])]),
+    BaseMessage: a.customType(MessageType),
+    PaginatedChatMessages: a.customType({
+      messages: a.ref("BaseMessage").array().required(),
+      nextToken: a.string(),
+    }),
     getChatMessages: a
       .query()
       .arguments({
         chatId: a.id().required(),
-        after: a.id(), // msgId
+        nextToken: a.string(), // msgId
         limit: a.integer(),
       })
-      .returns(a.ref("Message").array())
+      .returns(a.ref("PaginatedChatMessages"))
       .authorization((allow) => [allow.authenticated()])
       .handler([
         a.handler.custom({
@@ -521,7 +525,8 @@ const schema = a
           dataSource: a.ref("NONE"),
           entry: "./message-status-filter",
         }),
-      ]), */
+      ]), 
+    */
   })
   .authorization((access) => [
     access.resource(saveAndGenerateAiMessage),

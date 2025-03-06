@@ -10,18 +10,20 @@ export function request(ctx) {
   return {
     operation: "Query",
     index: "ChatId-UserId",
-    expression: "chatId = :chatId, userId = :userId",
-    expressionValues: util.dynamodb.toMapValues({
-      chatId,
-      userId: ctx.identity.sub,
-    }),
+    query: {
+      expression: "chatId = :chatId, userId = :userId",
+      expressionValues: util.dynamodb.toMapValues({
+        ":chatId": chatId,
+        ":userId": ctx.identity.sub,
+      }),
+    },
     limit: 1,
   };
 }
 
 export function response(ctx) {
-  ctx.stash.callerMembership = ctx.result;
-  return ctx.result;
+  ctx.stash.callerMembership = ctx.result.items && ctx.result.items[0];
+  return ctx.stash.callerMembership;
 }
 
 /* type DynamoDBQueryRequest = {
