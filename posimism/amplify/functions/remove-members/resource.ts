@@ -1,6 +1,6 @@
 import { defineFunction, } from "@aws-amplify/backend";
 
-export const saveAndGenerateMessage = defineFunction({
+export const removeMembers = defineFunction({
   memoryMB: 128,
   timeoutSeconds: 20,
   environment: { },
