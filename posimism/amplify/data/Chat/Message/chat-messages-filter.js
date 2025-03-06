@@ -11,12 +11,7 @@ export function request() {
 export function response(ctx) {
   const { chatId } = ctx.args;
   const stash = ctx.stash;
-  if (
-    !stash.callerMembership ||
-    !stash.callerMembership.result ||
-    !ctx.identity ||
-    !ctx.identity.sub
-  ) {
+  if (!stash.callerMembership?.result || !ctx.identity?.sub) {
     return util.unauthorized();
   }
 

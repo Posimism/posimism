@@ -5,7 +5,7 @@ export const ChatMemberType = {
   chatId: a.id().required(),
   userId: a.id().required(),
   createdAt: a.datetime(),
-  updatedAt: a.timestamp(),
+  updatedAt: a.datetime(),
   perms: a.ref("ChatPermissions").required(),
 };
 

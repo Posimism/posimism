@@ -6,31 +6,57 @@ import { util } from "@aws-appsync/utils";
  */
 export function request(ctx) {
   const { chatId, member, perms: permsToAdd } = ctx.args;
-  if (!ctx.prev.result) {
+  const { newChat } = ctx.stash;
+  if (!newChat && !ctx.prev?.result) {
     return util.unauthorized();
   }
 
+  // newChat means we're adding the owner to a new chat
+  if (newChat) {
+    return {
+      operation: "PutItem",
+      key: util.dynamodb.toMapValues({
+        id: util.autoId(),
+      }),
+      attributeValues: util.dynamodb.toMapValues({
+        chatId: newChat.id,
+        userId: newChat.owner,
+        createdAt: newChat.createdAt,
+        updatedAt: newChat.updatedAt,
+        perms: { owner: true },
+      }),
+    };
+  }
+  // !newChat means we're adding a member to an existing chat
+
   /*
-    perms has addMember and nothing they don't already have
+    caller must be owner OR (have addMembers and not be adding perms they don't have)
+    AND
+    they can't be adding a new owner
   */
   const { perms: userPerms } = ctx.prev.result;
   if (
-    !userPerms ||
-    (!userPerms.owner && !userPerms.addMembers) ||
-    permsToAdd.some((p) => !userPerms[p])
+    (!userPerms.owner &&
+      (!userPerms.addMembers ||
+        Object.entries(permsToAdd).some(
+          ([perm, granted]) => granted && !userPerms[perm]
+        ))) ||
+    permsToAdd.owner
   ) {
     return util.unauthorized();
   }
 
+  const now = util.time.nowISO8601();
   return {
     operation: "PutItem",
-    key: {
+    key: util.dynamodb.toMapValues({
       id: util.autoId(),
-    },
+    }),
     attributeValues: util.dynamodb.toMapValues({
       chatId,
       userId: member,
-      createdAt: util.time.nowISO8601(),
+      createdAt: now,
+      updatedAt: now,
       perms: permsToAdd,
     }),
   };

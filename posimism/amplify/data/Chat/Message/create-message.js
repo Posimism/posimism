@@ -7,7 +7,7 @@ import { util } from "@aws-appsync/utils";
 export function request(ctx) {
   const { chatId, msg, parentId } = ctx.args;
   const stash = ctx.stash;
-  if (!ctx.identity.sub || !stash.callerMembership) {
+  if (!ctx.identity?.sub || !stash.callerMembership) {
     return util.unauthorized();
   }
   if (parentId && !stash.retrievedMessage) {

@@ -231,7 +231,7 @@ export const SubscribeToChatMessages = ({
       if (res.errors) {
         throw new Error(res.errors[0].message);
       }
-      return res.data;
+      return res.data?.messages || [];
     }, // TODO pagination
   });
 
@@ -330,7 +330,6 @@ export const GetOrCreateChat = (auth: ApiUserAuthentication) => {
     queryFn: async () => {
       if (!dataClient || !owner || !authMode) return null;
 
-      console.log({ owner, authMode });
       // First try to get existing chats
       const existingChats = await dataClient.queries.getUserChats(
         {},
@@ -338,8 +337,8 @@ export const GetOrCreateChat = (auth: ApiUserAuthentication) => {
       );
 
       // If user has existing chats
-      if (existingChats.data && existingChats.data.chats.length > 0) {
-        return existingChats.data.chats;
+      if (existingChats.data && existingChats.data.members.length > 0) {
+        return existingChats.data.members;
       }
       if (existingChats.errors) {
         throw new Error(existingChats.errors[0].message);
@@ -364,7 +363,7 @@ export const CreateChat = (auth: ApiUserAuthentication) => {
   const { id: owner, authMode } = auth || {};
   const queryClient = useQueryClient();
 
-  return useMutation<Schema["Chat"]["type"] | null | undefined>({
+  return useMutation<Schema["ChatMember"]["type"] | null | undefined>({
     mutationFn: async () => {
       if (!dataClient || !owner || !authMode || authMode === "identityPool")
         throw new Error("Not authenticated");

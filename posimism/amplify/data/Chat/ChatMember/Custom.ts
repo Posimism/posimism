@@ -2,6 +2,23 @@ import { a } from "@aws-amplify/backend";
 import { removeMembers } from "../../../functions/remove-members/resource";
 
 export const chatMemberMethods = {
+  createChatMutation: a
+    .mutation()
+    .arguments({
+      name: a.string(),
+    })
+    .handler([
+      a.handler.custom({
+        dataSource: a.ref("Chat"),
+        entry: "../Chat/create-chat.js",
+      }),
+      a.handler.custom({
+        dataSource: a.ref("ChatMember"),
+        entry: "../ChatMember/add-member.js",
+      }),
+    ])
+    .authorization((allow) => [allow.authenticated()])
+    .returns(a.ref("ChatMember")),
   getChatMembers: a
     .mutation()
     .arguments({
@@ -75,7 +92,7 @@ export const chatMemberMethods = {
       ascending: a.boolean(),
     })
     .authorization((allow) => [allow.authenticated()])
-    .returns(a.ref("PaginatedUserChats"))
+    .returns(a.ref("PaginatedChatMembers"))
     .handler([
       a.handler.custom({
         dataSource: a.ref("ChatMember"),

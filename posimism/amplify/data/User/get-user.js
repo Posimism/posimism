@@ -6,7 +6,7 @@ import { util } from "@aws-appsync/utils";
  */
 export function request(ctx) {
   const { sub } = ctx.args;
-  if (!ctx.identity || !ctx.identity.sub) {
+  if (!ctx.identity?.sub) {
     return util.unauthorized();
   }
 

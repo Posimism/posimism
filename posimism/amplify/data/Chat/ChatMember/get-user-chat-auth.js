@@ -1,9 +1,12 @@
 // import * as ddb from "@aws-appsync/utils/dynamodb";
 import { util } from "@aws-appsync/utils";
 
+/**
+ * @param {import('@aws-appsync/utils').Context} ctx
+ */
 export function request(ctx) {
   const { chatId } = ctx.args;
-  if (!ctx.identity || !ctx.identity.sub) {
+  if (!ctx.identity?.sub) {
     return util.unauthorized();
   }
 
@@ -11,7 +14,7 @@ export function request(ctx) {
     operation: "Query",
     index: "ChatId-UserId",
     query: {
-      expression: "chatId = :chatId, userId = :userId",
+      expression: "chatId = :chatId AND userId = :userId",
       expressionValues: util.dynamodb.toMapValues({
         ":chatId": chatId,
         ":userId": ctx.identity.sub,
@@ -22,7 +25,7 @@ export function request(ctx) {
 }
 
 export function response(ctx) {
-  ctx.stash.callerMembership = ctx.result.items && ctx.result.items[0];
+  ctx.stash.callerMembership = ctx.result?.items?.[0];
   return ctx.stash.callerMembership;
 }
 

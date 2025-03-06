@@ -1,18 +1,22 @@
 // import * as ddb from "@aws-appsync/utils/dynamodb";
 import { util } from "@aws-appsync/utils";
 
+/**
+ * @param {import('@aws-appsync/utils').Context} ctx
+ */
 export function request(ctx) {
   const { name } = ctx.args;
-  if (!ctx.identity || !ctx.identity.sub) {
+  if (!ctx.identity?.sub) {
     return util.unauthorized();
   }
 
+  const now = util.time.nowISO8601();
   return {
     operation: "PutItem",
     key: util.dynamodb.toMapValues({ id: util.autoId() }),
     attributeValues: util.dynamodb.toMapValues({
-      createdAt: util.time.nowISO8601(),
-      updatedAt: util.time.nowISO8601(),
+      createdAt: now,
+      updatedAt: now,
       owner: ctx.identity.sub,
       name,
     }),
@@ -20,6 +24,7 @@ export function request(ctx) {
 }
 
 export function response(ctx) {
+  ctx.stash.newChat = ctx.result;
   return ctx.result;
 }
 

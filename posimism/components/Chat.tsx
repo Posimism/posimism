@@ -546,7 +546,7 @@ export const AiChatWindow = () => {
 export const ChatWindow = () => {
   const userIDState = useUserID();
   const { data: chats } = GetOrCreateChat(userIDState || null);
-  const { id: currentChatID } = (chats && chats[0]) || {};
+  const { chatId: currentChatID } = (chats && chats[0]) || {};
   const { isAuthenticated, isLoading } = useUserID();
 
   if (!isLoading && !isAuthenticated) {

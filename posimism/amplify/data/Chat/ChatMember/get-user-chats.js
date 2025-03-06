@@ -6,7 +6,7 @@ import { util } from "@aws-appsync/utils";
  */
 export function request(ctx) {
   const { nextToken, limit } = ctx.args;
-  if (!ctx.identity.sub) {
+  if (!ctx.identity?.sub) {
     return util.unauthorized();
   }
 
@@ -19,14 +19,14 @@ export function request(ctx) {
         ":userId": ctx.identity.sub,
       }),
     },
-    limit: limit,
-    nextToken: nextToken,
+    limit,
+    nextToken,
   };
 }
 
 export function response(ctx) {
-  const { items, nextToken } = ctx.result;
-  return { chats: items ?? [], next: nextToken };
+  const { items, nextToken } = ctx.result || {};
+  return { members: items ?? [], nextToken };
 }
 
 /* type DynamoDBQueryRequest = {

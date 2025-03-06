@@ -4,7 +4,7 @@ import { util } from "@aws-appsync/utils";
 export function request(ctx) {
   const { chatId, nextToken, limit } = ctx.args;
   const stash = ctx.stash;
-  if (!ctx.identity.sub || !stash.callerMembership) {
+  if (!ctx.identity?.sub || !stash.callerMembership) {
     return util.unauthorized();
   }
 
@@ -17,15 +17,15 @@ export function request(ctx) {
         ":chatId": chatId,
       }),
     },
-    limit: limit,
-    nextToken: nextToken,
+    limit,
+    nextToken,
     scanIndexForward: false,
   };
 }
 
 export function response(ctx) {
-  const { items, nextToken } = ctx.result;
-  return { messages: items ?? [], next: nextToken };
+  const { items, nextToken } = ctx.result ?? {};
+  return { messages: items ?? [], nextToken };
 }
 
 /* type DynamoDBQueryRequest = {
@@ -51,3 +51,19 @@ export function response(ctx) {
     expressionNames?: { [key: string]: string };
   };
 }; */
+
+/*
+{
+  "data": { "getChatMessages": null },
+  "errors": [
+    {
+      "path": ["getChatMessages"],
+      "data": null,
+      "errorType": "Unauthorized",
+      "errorInfo": null,
+      "locations": [{ "line": 2, "column": 3, "sourceName": null }],
+      "message": "Not Authorized to access getChatMessages on type Query"
+    }
+  ]
+}
+ */

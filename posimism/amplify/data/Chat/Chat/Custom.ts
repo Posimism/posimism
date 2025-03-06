@@ -1,19 +1,6 @@
-import { a } from "@aws-amplify/backend";
+// import { a } from "@aws-amplify/backend";
 
 export const chatMethods = {
-  createChatMutation: a
-    .mutation()
-    .arguments({
-      name: a.string(),
-    })
-    .handler(
-      a.handler.custom({
-        dataSource: a.ref("Chat"),
-        entry: "./create-chat.js",
-      })
-    )
-    .authorization((allow) => [allow.authenticated()])
-    .returns(a.ref("Chat")),
   // deleteChat: a
   //   .mutation()
   //   .arguments({

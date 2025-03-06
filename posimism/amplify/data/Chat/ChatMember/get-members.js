@@ -28,8 +28,8 @@ export function request(ctx) {
 }
 
 export function response(ctx) {
-  const { items, nextToken } = ctx.result;
-  return { members: items ?? [], next: nextToken };
+  const { items, nextToken } = ctx.result || {};
+  return { members: items ?? [], nextToken };
 }
 
 /* type DynamoDBQueryRequest = {
